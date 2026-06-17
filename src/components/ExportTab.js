@@ -15,6 +15,103 @@ const CANADA_HOLIDAYS = [
   { name: "Father's Day", date: "June 15", emoji: "👔", theme: "bold, warm, appreciation, earthy tones" },
 ]
 
+const FORMAT_PRESETS = {
+  social: [
+    {
+      key: "ig_post",
+      label: "Instagram Post",
+      emoji: "📸",
+      size: "1080 × 1350px",
+      ratio: "4:5 portrait",
+      spec: "1080px × 1350px (4:5 portrait), 72dpi, RGB",
+      usage: "Instagram feed post",
+      notes: "Most engaging feed format. Keep key content in center, avoid edges."
+    },
+    {
+      key: "ig_square",
+      label: "Instagram Square",
+      emoji: "⬜",
+      size: "1080 × 1080px",
+      ratio: "1:1",
+      spec: "1080px × 1080px (1:1 square), 72dpi, RGB",
+      usage: "Instagram feed — square",
+      notes: "Classic square. Good for product shots and logos."
+    },
+    {
+      key: "ig_story",
+      label: "Instagram Story",
+      emoji: "📱",
+      size: "1080 × 1920px",
+      ratio: "9:16 vertical",
+      spec: "1080px × 1920px (9:16 vertical), 72dpi, RGB",
+      usage: "Instagram / Facebook Story",
+      notes: "Keep main content between top 250px and bottom 250px safe zones."
+    },
+    {
+      key: "ig_carousel",
+      label: "Carousel Slide",
+      emoji: "🎠",
+      size: "1080 × 1350px",
+      ratio: "4:5 portrait",
+      spec: "1080px × 1350px per slide (4:5 portrait), 72dpi, RGB",
+      usage: "Instagram carousel — multi-slide",
+      notes: "Design 3–10 slides with consistent layout. First slide is the hook."
+    },
+  ],
+  print: [
+    {
+      key: "business_card",
+      label: "Business Card",
+      emoji: "💳",
+      size: "3.5 × 2 in",
+      ratio: "Standard",
+      spec: "3.5in × 2in (with 0.125in bleed = 3.75 × 2.25in), 300dpi, CMYK",
+      usage: "Standard business card",
+      notes: "Include 0.125in bleed on all sides. Keep text 0.125in from trim edge."
+    },
+    {
+      key: "flyer_letter",
+      label: "Flyer 8.5×11",
+      emoji: "📄",
+      size: "8.5 × 11 in",
+      ratio: "Letter",
+      spec: "8.5in × 11in (with 0.125in bleed), 300dpi, CMYK",
+      usage: "Standard letter flyer / poster",
+      notes: "Most common print size. Good for menus, promos, event flyers."
+    },
+    {
+      key: "flyer_11x17",
+      label: "Flyer 11×17",
+      emoji: "🗞️",
+      size: "11 × 17 in",
+      ratio: "Tabloid",
+      spec: "11in × 17in (with 0.125in bleed), 300dpi, CMYK",
+      usage: "Large format flyer / poster",
+      notes: "Double letter size. Great for window displays and event posters."
+    },
+    {
+      key: "flyer_12x18",
+      label: "Poster 12×18",
+      emoji: "🖼️",
+      size: "12 × 18 in",
+      ratio: "2:3",
+      spec: "12in × 18in (with 0.125in bleed), 300dpi, CMYK",
+      usage: "Premium poster",
+      notes: "Popular for restaurant menus and retail displays."
+    },
+    {
+      key: "banner",
+      label: "Banner 24×36",
+      emoji: "🎌",
+      size: "24 × 36 in",
+      ratio: "2:3",
+      spec: "24in × 36in, 150dpi minimum (viewed from distance), CMYK",
+      usage: "Retractable banner / large poster",
+      notes: "Lower dpi is okay since viewed from a distance. Keep text large."
+    },
+  ]
+}
+
 function generateClientContext(client) {
   return `# CLIENT CONTEXT — ${client.name}
 
@@ -125,12 +222,67 @@ function generateBulkHolidayCampaigns(allClients, holiday) {
   ).join('\n\n---\n\n')
 }
 
+
+function generateDesignPrompt(client, format, holiday = null) {
+  const isHoliday = holiday !== null
+  const holidayContext = isHoliday
+    ? `\n\nHOLIDAY: ${holiday.name} (${holiday.date})\nHoliday mood: ${holiday.theme}`
+    : ''
+
+  return `# Design Prompt — ${client.name}
+## Format: ${format.label} (${format.size})
+
+**Client:** ${client.name} | ${client.category}
+**Format:** ${format.label}
+**Spec:** ${format.spec}
+**Usage:** ${format.usage}
+**Note:** ${format.notes}
+
+---
+
+## Claude Design / Canva Prompt
+
+Design a ${format.label} for **${client.name}**, a ${client.category} based in Vancouver.${holidayContext}
+
+**Size:** ${format.spec}
+**Brand Colors:** ${client.colors.map((c,i) => `${client.colorNames[i]} (${c})`).join(', ')}
+**Tone:** ${client.tone.join(', ')}
+**Style:** ${client.tone[0]}, modern, editorial
+
+**Content to include:**
+- Brand name: ${client.name}
+${isHoliday ? `- Holiday: ${holiday.emoji} ${holiday.name} greeting` : `- Key service highlight: ${client.highlights[0]}`}
+- Minimal text overlay
+- Brand color palette as primary palette
+
+**Visual direction:**
+- Primary color: ${client.colors[0]}
+- Accent: ${client.colors[1] || client.colors[0]}
+- Clean typography, ${client.tone[0].toLowerCase()} feel
+- Real photography or minimal illustration (no generic stock)
+${isHoliday ? `- Holiday accent colors blended with brand palette` : ''}
+
+**Do NOT:**
+- Use off-brand colors
+- Add too much text
+- Use generic clipart or busy backgrounds
+
+---
+
+## Midjourney / AI Image Prompt
+
+"${client.tone[0].toLowerCase()} ${client.category.toLowerCase()} ${isHoliday ? holiday.name + ' ' : ''}promotional design, ${client.colors[0]} and ${client.colors[1] || '#ffffff'} color palette, ${format.ratio} format, minimal typography, Vancouver aesthetic, editorial photography style, professional marketing design --ar ${format.ratio.includes('4:5') ? '4:5' : format.ratio.includes('9:16') ? '9:16' : format.ratio.includes('1:1') ? '1:1' : '11:17'}"
+`
+}
+
 export default function ExportTab({ client, allClients }) {
   const [copied, setCopied] = useState('')
   const [selectedHoliday, setSelectedHoliday] = useState(null)
   const [bulkHoliday, setBulkHoliday] = useState(null)
   const [bulkGenerated, setBulkGenerated] = useState('')
-  const [activeSection, setActiveSection] = useState('context') // context | holiday | bulk
+  const [activeSection, setActiveSection] = useState('context') // context | holiday | bulk | design
+  const [selectedFormat, setSelectedFormat] = useState(null)
+  const [designHoliday, setDesignHoliday] = useState(null)
 
   const copy = (text, key) => {
     navigator.clipboard.writeText(text)
@@ -156,9 +308,10 @@ export default function ExportTab({ client, allClients }) {
   return (
     <div>
       {/* Section tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         {[
           { key: 'context', label: '📋 Client Context' },
+          { key: 'design', label: '🎨 Design Prompt' },
           { key: 'holiday', label: '🎄 Holiday Campaign' },
           { key: 'bulk', label: '⚡ Bulk Generator' },
         ].map(sec => (
@@ -247,6 +400,101 @@ export default function ExportTab({ client, allClients }) {
               </>
             )}
           </div>
+        </div>
+      )}
+
+
+      {/* ── SECTION: Design Prompt ── */}
+      {activeSection === 'design' && (
+        <div>
+          {/* Social formats */}
+          <div style={s}>
+            <div style={labelStyle}>📱 Social Media</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8, marginBottom: 16 }}>
+              {FORMAT_PRESETS.social.map(f => (
+                <button key={f.key} onClick={() => setSelectedFormat(f)}
+                  style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid", cursor: "pointer", textAlign: "left",
+                    background: selectedFormat?.key === f.key ? "#1a1a1a" : "#FFF",
+                    color: selectedFormat?.key === f.key ? "#FFF" : "#333",
+                    borderColor: selectedFormat?.key === f.key ? "#1a1a1a" : "#EEE" }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{f.emoji}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{f.label}</div>
+                  <div style={{ fontSize: 10, opacity: 0.65, marginTop: 2 }}>{f.size}</div>
+                  <div style={{ fontSize: 9, opacity: 0.45, marginTop: 1 }}>{f.ratio}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Print formats */}
+          <div style={s}>
+            <div style={labelStyle}>🖨️ Print</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8, marginBottom: 16 }}>
+              {FORMAT_PRESETS.print.map(f => (
+                <button key={f.key} onClick={() => setSelectedFormat(f)}
+                  style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid", cursor: "pointer", textAlign: "left",
+                    background: selectedFormat?.key === f.key ? "#1a1a1a" : "#FFF",
+                    color: selectedFormat?.key === f.key ? "#FFF" : "#333",
+                    borderColor: selectedFormat?.key === f.key ? "#1a1a1a" : "#EEE" }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{f.emoji}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{f.label}</div>
+                  <div style={{ fontSize: 10, opacity: 0.65, marginTop: 2 }}>{f.size}</div>
+                  <div style={{ fontSize: 9, opacity: 0.45, marginTop: 1 }}>{f.ratio}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Optional holiday layer */}
+          {selectedFormat && (
+            <div style={s}>
+              <div style={labelStyle}>🎄 Holiday 추가 (선택사항)</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                <button onClick={() => setDesignHoliday(null)}
+                  style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid", fontSize: 11, cursor: "pointer",
+                    background: !designHoliday ? "#1a1a1a" : "#FFF",
+                    color: !designHoliday ? "#FFF" : "#666",
+                    borderColor: !designHoliday ? "#1a1a1a" : "#DDD" }}>
+                  없음 (일반)
+                </button>
+                {CANADA_HOLIDAYS.map(h => (
+                  <button key={h.name} onClick={() => setDesignHoliday(h)}
+                    style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid", fontSize: 11, cursor: "pointer",
+                      background: designHoliday?.name === h.name ? "#1a1a1a" : "#FFF",
+                      color: designHoliday?.name === h.name ? "#FFF" : "#666",
+                      borderColor: designHoliday?.name === h.name ? "#1a1a1a" : "#DDD" }}>
+                    {h.emoji} {h.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Generated prompt */}
+          {selectedFormat && (
+            <div style={s}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div>
+                  <div style={labelStyle}>생성된 디자인 프롬프트</div>
+                  <div style={{ fontSize: 12, color: "#888" }}>
+                    {selectedFormat.emoji} {selectedFormat.label} · {selectedFormat.spec}
+                    {designHoliday ? ` · ${designHoliday.emoji} ${designHoliday.name}` : ''}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => copy(generateDesignPrompt(client, selectedFormat, designHoliday), 'design')} style={btnPrimary}>
+                    {copied === 'design' ? '✓ Copied!' : '📋 Copy Prompt'}
+                  </button>
+                  <button onClick={() => downloadMd(generateDesignPrompt(client, selectedFormat, designHoliday), `${client.id}_${selectedFormat.key}${designHoliday ? '_' + designHoliday.name.replace(/ /g,'_') : ''}.md`)} style={btnSecondary}>
+                    ⬇️ .md
+                  </button>
+                </div>
+              </div>
+              <div style={{ background: "#F7F5F2", borderRadius: 8, padding: 18, fontSize: 11, lineHeight: 1.8, color: "#555", fontFamily: "monospace", whiteSpace: "pre-wrap", maxHeight: 420, overflowY: "auto" }}>
+                {generateDesignPrompt(client, selectedFormat, designHoliday)}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
