@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { clients, categories, categoryMap } from '../app/clients'
 import DriveGallery from './DriveGallery'
 import LogoSection from './LogoSection'
+import ExportTab from './ExportTab'
 
 export default function BrandHub() {
   const [selected, setSelected] = useState(null);
@@ -70,9 +71,9 @@ export default function BrandHub() {
             </div>
 
             <div style={{ display: "flex", marginBottom: 22, borderBottom: "1px solid #E8E4DF" }}>
-              {["brand", "gallery", "prompt", "schedule"].map(t => (
+              {["brand", "gallery", "prompt", "schedule", "export"].map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{ padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: tab === t ? 600 : 400, color: tab === t ? "#1a1a1a" : "#999", borderBottom: tab === t ? "2px solid #1a1a1a" : "2px solid transparent", whiteSpace: "nowrap" }}>
-                  {t === "brand" ? "🎨 Brand" : t === "gallery" ? `🖼️ Gallery${selected.driveFolderId ? " ●" : ""}` : t === "prompt" ? "🤖 AI Prompt" : "📅 Schedule"}
+                  {t === "brand" ? "🎨 Brand" : t === "gallery" ? `🖼️ Gallery${selected.driveFolderId ? " ●" : ""}` : t === "prompt" ? "🤖 AI Prompt" : t === "schedule" ? "📅 Schedule" : "🚀 Export"}
                 </button>
               ))}
             </div>
@@ -118,6 +119,8 @@ export default function BrandHub() {
             )}
 
             {tab === "gallery" && <DriveGallery key={selected.id} initialFolderId={selected.driveFolderId} />}
+
+            {tab === "export" && <ExportTab client={selected} allClients={clients} />}
 
             {tab === "prompt" && (
               <div style={{ background: "#FFF", borderRadius: 12, padding: 22 }}>
