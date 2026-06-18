@@ -10,8 +10,11 @@ export default function BrandHub() {
   const [filter, setFilter] = useState("All");
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState("brand");
+  const [showArchived, setShowArchived] = useState(false);
 
-  const filtered = filter === "All" ? clients : clients.filter(c => categoryMap[filter]?.includes(c.id));
+  const visibleClients = clients.filter(c => showArchived ? !c.active : c.active !== false)
+  const filtered = filter === "All" ? visibleClients : visibleClients.filter(c => categoryMap[filter]?.includes(c.id));
+  const archivedCount = clients.filter(c => c.active === false).length;
   const copyPrompt = (text) => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   const copyNotion = (client) => {
     const block = `# ${client.name} (${client.nameKo})\n📂 Category: ${client.category}\n📸 Instagram: ${client.instagram}\n🌐 Website: ${client.website}\n\n## Brand Colors\n${client.colors.map((c, i) => `- ${client.colorNames[i]}: ${c}`).join("\n")}\n\n## Tone\n${client.tone.join(" · ")}\n\n## Key Services\n${client.highlights.map(h => `- ${h}`).join("\n")}\n\n## Schedule\n${client.schedule}\n\n## ChatGPT Prompt\n${client.chatgptPrompt}`;
@@ -25,7 +28,18 @@ export default function BrandHub() {
           <div style={{ color: "#C8B89A", fontSize: 10, letterSpacing: 3, textTransform: "uppercase", marginBottom: 3 }}>Vancouver Marketing Agency</div>
           <div style={{ color: "#FFF", fontSize: 20, fontWeight: 700, letterSpacing: -0.5 }}>Brand Hub</div>
         </div>
-        <div style={{ color: "#555", fontSize: 12 }}>{clients.length} clients</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {archivedCount > 0 && (
+            <button onClick={() => setShowArchived(!showArchived)}
+              style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, border: "1px solid", cursor: "pointer",
+                background: showArchived ? "#C0272D" : "transparent",
+                color: showArchived ? "#fff" : "#888",
+                borderColor: showArchived ? "#C0272D" : "#444" }}>
+              {showArchived ? `📦 Archived (${archivedCount})` : `📦 ${archivedCount} archived`}
+            </button>
+          )}
+          <div style={{ color: "#555", fontSize: 12 }}>{filtered.length} clients</div>
+        </div>
       </div>
 
       <div style={{ display: "flex", height: "calc(100vh - 64px)" }}>
@@ -50,6 +64,7 @@ export default function BrandHub() {
                 <div style={{ display: "flex", gap: 3, alignItems: "center", flexShrink: 0 }}>
                   {client.colors.slice(0, 3).map((c, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: c, border: "1px solid rgba(0,0,0,0.1)" }} />)}
                   {client.driveFolderId && <span style={{ fontSize: 8, color: "#4CAF50", marginLeft: 2 }}>●</span>}
+                  {client.active === false && <span style={{ fontSize: 8, color: "#C0272D", marginLeft: 2 }}>■</span>}
                 </div>
               </div>
             </div>
@@ -65,11 +80,24 @@ export default function BrandHub() {
                 <div style={{ color: "#AAA", fontSize: 13, marginTop: 2 }}>{selected.nameKo}</div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => {
+                  const updated = clients.map(c => c.id === selected.id ? {...c, active: !c.active} : c)
+                  // Note: this is session-only — to persist, update clients.js
+                  alert(selected.active === false ? `✅ ${selected.name} activated!` : `📦 ${selected.name} archived!\n\nTo make permanent, update active: false in clients.js`)
+                }}
+                  style={{ padding: "7px 13px", background: selected.active === false ? "#FFF0F0" : "#F0EDE8", borderRadius: 8, fontSize: 12, color: selected.active === false ? "#C0272D" : "#888", border: "none", cursor: "pointer" }}>
+                  {selected.active === false ? "✅ Activate" : "📦 Archive"}
+                </button>
                 <a href={selected.website} target="_blank" rel="noopener noreferrer" style={{ padding: "7px 13px", background: "#F0EDE8", borderRadius: 8, fontSize: 12, color: "#555", textDecoration: "none" }}>🌐 Website</a>
                 <button onClick={() => copyNotion(selected)} style={{ padding: "7px 13px", background: "#1a1a1a", borderRadius: 8, fontSize: 12, color: "#fff", border: "none", cursor: "pointer" }}>{copied ? "✓ Copied!" : "📋 Copy to Notion"}</button>
               </div>
             </div>
 
+            {selected.active === false && (
+              <div style={{ padding: "10px 16px", background: "#FFF0F0", borderRadius: 10, border: "1px solid #FFCCCC", marginBottom: 16, fontSize: 12, color: "#C0272D", display: "flex", alignItems: "center", gap: 8 }}>
+                📦 <strong>Archived</strong> — 이 클라이언트는 현재 비활성 상태예요. clients.js에서 active: true로 변경하면 복구돼요.
+              </div>
+            )}
             <div style={{ display: "flex", marginBottom: 22, borderBottom: "1px solid #E8E4DF" }}>
               {["brand", "gallery", "prompt", "schedule", "export"].map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{ padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: tab === t ? 600 : 400, color: tab === t ? "#1a1a1a" : "#999", borderBottom: tab === t ? "2px solid #1a1a1a" : "2px solid transparent", whiteSpace: "nowrap" }}>
@@ -161,4 +189,3 @@ export default function BrandHub() {
     </div>
   );
 }
-
