@@ -38,7 +38,12 @@ export default function BrandHub() {
               {showArchived ? `📦 Archived (${archivedCount})` : `📦 ${archivedCount} archived`}
             </button>
           )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <a href="/calendar" style={{ padding: '7px 14px', background: '#C8B89A', color: '#1a1a1a', borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+            📅 캘린더
+          </a>
           <div style={{ color: "#555", fontSize: 12 }}>{filtered.length} clients</div>
+        </div>
         </div>
       </div>
 
