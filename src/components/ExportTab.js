@@ -15,6 +15,73 @@ const CANADA_HOLIDAYS = [
   { name: "Father's Day", date: "June 15", emoji: "👔", theme: "bold, warm, appreciation, earthy tones" },
 ]
 
+// ── Dynamic prompt generator from client data ──────────────────────────────
+function buildSystemPrompt(client) {
+  const colorDesc = client.colors.map((hex, i) => `${client.colorNames[i]} (${hex})`).join(', ')
+  const avoidWords = {
+    wolha: 'cheap, party, fun, cute, trendy, K-pop vibes, 막걸리 출시, 가성비, 술 한잔',
+    twohorns: 'cheap, casual, fast food vibes',
+    gamisushi: 'casual, cheap, fast food',
+    gakesushi: 'casual, cheap, fast food',
+  }
+  const avoid = avoidWords[client.id] ? `\nNEVER USE: ${avoidWords[client.id]}` : ''
+  const location = {
+    queenstherapy: 'Coquitlam, Vancouver',
+    joayotherapy: 'Brentwood, Burnaby',
+    joayopilates: 'Brentwood, Burnaby',
+    cocoricocafe: 'Robson Street, Vancouver',
+    gakesushi: 'Kitsilano, Vancouver',
+    gamisushi: 'Richmond, Vancouver',
+  }[client.id] || 'Vancouver, BC'
+
+  return `You are a social media content creator for ${client.name} (${client.nameKo}), a ${client.category} in ${location}.
+
+BRAND COLORS: ${colorDesc}
+TONE: ${client.tone.join(', ')}
+KEY SERVICES: ${client.highlights.join(', ')}
+DESIGN SCHEDULE: ${client.schedule}${avoid}
+
+Always write in the brand voice. Use the exact HEX color codes when referencing colors. Keep content relevant to the Vancouver/BC market.`
+}
+
+function buildQuickPrompt(client, type) {
+  const base = buildSystemPrompt(client)
+  const colorDesc = client.colors.map((hex, i) => `${client.colorNames[i]} (${hex})`).join(', ')
+  const prompts = {
+    'Instagram Post': `${base}
+
+TASK: Write an Instagram feed post (1080x1350px, 4:5 portrait).
+- Caption: engaging, on-brand, under 150 words
+- Include a clear CTA
+- End with 10 relevant hashtags
+- Visual direction: use brand colors ${colorDesc}`,
+
+    'Story': `${base}
+
+TASK: Write an Instagram Story sequence (1080x1920px, 9:16).
+- 3-5 story frames
+- Each frame: 1 short punchy line + CTA direction
+- Keep it casual and quick to consume`,
+
+    'Carousel (5 slides)': `${base}
+
+TASK: Write a 5-slide Instagram carousel (1080x1350px each).
+- Slide 1: Hook headline (make them swipe)
+- Slides 2-4: One key point each, minimal text
+- Slide 5: CTA + booking prompt
+- Include caption + 10 hashtags`,
+
+    'Caption + Hashtags': `${base}
+
+TASK: Write only the Instagram caption and hashtags.
+- Caption: 80-120 words, warm and on-brand
+- 15 hashtags: mix of niche, local (Vancouver/BC), and broad
+- Format: caption first, then hashtags on new line`,
+  }
+  return prompts[type] || base
+}
+
+
 const FORMAT_PRESETS = {
   social: [
     {
@@ -134,7 +201,7 @@ ${client.highlights.map(h => `- ${h}`).join('\n')}
 ${client.schedule}
 
 ## AI System Prompt
-${client.chatgptPrompt}
+${buildSystemPrompt(client)}
 
 ## Do's & Don'ts
 **Do:**
@@ -350,10 +417,10 @@ export default function ExportTab({ client, allClients }) {
             <div style={labelStyle}>Quick Prompt Copy</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {[
-                { label: "Instagram Post", prompt: `Create an Instagram post for ${client.name}. ${client.chatgptPrompt}` },
-                { label: "Story", prompt: `Create an Instagram Story for ${client.name}. Keep it short and punchy. ${client.chatgptPrompt}` },
-                { label: "Carousel (5 slides)", prompt: `Create a 5-slide educational Instagram carousel for ${client.name}. ${client.chatgptPrompt}` },
-                { label: "Caption + Hashtags", prompt: `Write a caption and 10 hashtags for ${client.name}'s latest Instagram post. ${client.chatgptPrompt}` },
+                { label: "Instagram Post", prompt: buildQuickPrompt(client, "Instagram Post") },
+                { label: "Story", prompt: buildQuickPrompt(client, "Story") },
+                { label: "Carousel (5 slides)", prompt: buildQuickPrompt(client, "Carousel (5 slides)") },
+                { label: "Caption + Hashtags", prompt: buildQuickPrompt(client, "Caption + Hashtags") },
               ].map((item, i) => (
                 <button key={i} onClick={() => copy(item.prompt, `quick_${i}`)}
                   style={{ ...btnSecondary, fontSize: 11 }}>
