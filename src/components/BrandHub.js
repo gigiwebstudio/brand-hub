@@ -5,6 +5,36 @@ import DriveGallery from './DriveGallery'
 import LogoSection from './LogoSection'
 import ExportTab from './ExportTab'
 
+
+// Dynamic system prompt generator from client data
+function buildSystemPrompt(client) {
+  const colorDesc = client.colors.map((hex, i) => `${client.colorNames[i]} (${hex})`).join(', ')
+  const avoidMap = {
+    wolha: 'cheap, party, fun, cute, trendy, K-pop vibes',
+    twohorns: 'cheap, casual, fast food vibes',
+    gamisushi: 'casual, cheap, fast food',
+    gakesushi: 'casual, cheap, fast food',
+  }
+  const locationMap = {
+    queenstherapy: 'Coquitlam, Vancouver',
+    joayotherapy: 'Brentwood, Burnaby',
+    joayopilates: 'Brentwood, Burnaby',
+    cocoricocafe: 'Robson Street, Vancouver',
+    gakesushi: 'Kitsilano, Vancouver',
+    gamisushi: 'Richmond, Vancouver',
+  }
+  const location = locationMap[client.id] || 'Vancouver, BC'
+  const avoid = avoidMap[client.id] ? `\nNEVER USE: ${avoidMap[client.id]}` : ''
+  return `You are a social media content creator for ${client.name} (${client.nameKo}), a ${client.category} in ${location}.
+
+BRAND COLORS: ${colorDesc}
+TONE: ${client.tone.join(', ')}
+KEY SERVICES: ${client.highlights.join(', ')}
+DESIGN SCHEDULE: ${client.schedule}${avoid}
+
+Always write in the brand voice. Use the exact HEX color codes when referencing colors. Keep content relevant to the Vancouver/BC market.`
+}
+
 export default function BrandHub() {
   const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState("All");
@@ -17,7 +47,7 @@ export default function BrandHub() {
   const archivedCount = clients.filter(c => c.active === false).length;
   const copyPrompt = (text) => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   const copyNotion = (client) => {
-    const block = `# ${client.name} (${client.nameKo})\n📂 Category: ${client.category}\n📸 Instagram: ${client.instagram}\n🌐 Website: ${client.website}\n\n## Brand Colors\n${client.colors.map((c, i) => `- ${client.colorNames[i]}: ${c}`).join("\n")}\n\n## Tone\n${client.tone.join(" · ")}\n\n## Key Services\n${client.highlights.map(h => `- ${h}`).join("\n")}\n\n## Schedule\n${client.schedule}\n\n## ChatGPT Prompt\n${client.chatgptPrompt}`;
+    const block = `# ${client.name} (${client.nameKo})\n📂 Category: ${client.category}\n📸 Instagram: ${client.instagram}\n🌐 Website: ${client.website}\n\n## Brand Colors\n${client.colors.map((c, i) => `- ${client.colorNames[i]}: ${c}`).join("\n")}\n\n## Tone\n${client.tone.join(" · ")}\n\n## Key Services\n${client.highlights.map(h => `- ${h}`).join("\n")}\n\n## Schedule\n${client.schedule}\n\n## ChatGPT Prompt\n${buildSystemPrompt(client)}`;
     navigator.clipboard.writeText(block); setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
@@ -93,6 +123,12 @@ export default function BrandHub() {
                   style={{ padding: "7px 13px", background: selected.active === false ? "#FFF0F0" : "#F0EDE8", borderRadius: 8, fontSize: 12, color: selected.active === false ? "#C0272D" : "#888", border: "none", cursor: "pointer" }}>
                   {selected.active === false ? "✅ Activate" : "📦 Archive"}
                 </button>
+                {selected.canvaProjectUrl && (
+                  <a href={selected.canvaProjectUrl} target="_blank" rel="noopener noreferrer"
+                    style={{ padding: "7px 13px", background: "#7B2FF7", borderRadius: 8, fontSize: 12, color: "#FFF", textDecoration: "none" }}>
+                    🎨 Canva
+                  </a>
+                )}
                 <a href={selected.website} target="_blank" rel="noopener noreferrer" style={{ padding: "7px 13px", background: "#F0EDE8", borderRadius: 8, fontSize: 12, color: "#555", textDecoration: "none" }}>🌐 Website</a>
                 <button onClick={() => copyNotion(selected)} style={{ padding: "7px 13px", background: "#1a1a1a", borderRadius: 8, fontSize: 12, color: "#fff", border: "none", cursor: "pointer" }}>{copied ? "✓ Copied!" : "📋 Copy to Notion"}</button>
               </div>
@@ -162,9 +198,9 @@ export default function BrandHub() {
                     <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>ChatGPT / Claude System Prompt</div>
                     <div style={{ fontSize: 12, color: "#888" }}>Custom GPT 또는 새 대화 시작 시 붙여넣기</div>
                   </div>
-                  <button onClick={() => copyPrompt(selected.chatgptPrompt)} style={{ padding: "7px 14px", background: "#1a1a1a", borderRadius: 8, fontSize: 12, color: "#fff", border: "none", cursor: "pointer" }}>{copied ? "✓ Copied!" : "Copy Prompt"}</button>
+                  <button onClick={() => copyPrompt(buildSystemPrompt(selected))} style={{ padding: "7px 14px", background: "#1a1a1a", borderRadius: 8, fontSize: 12, color: "#fff", border: "none", cursor: "pointer" }}>{copied ? "✓ Copied!" : "Copy Prompt"}</button>
                 </div>
-                <div style={{ background: "#F7F5F2", borderRadius: 8, padding: 18, fontSize: 12, lineHeight: 1.7, color: "#555", fontFamily: "monospace", whiteSpace: "pre-wrap" }}>{selected.chatgptPrompt}</div>
+                <div style={{ background: "#F7F5F2", borderRadius: 8, padding: 18, fontSize: 12, lineHeight: 1.7, color: "#555", fontFamily: "monospace", whiteSpace: "pre-wrap" }}>{buildSystemPrompt(selected)}</div>
               </div>
             )}
 
