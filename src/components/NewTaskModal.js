@@ -1,10 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-
-// NOTE: swap this for your real client list, e.g.:
-//   import { clients } from '../data/clients';
-// Left as free-text input for now since there are only ~14 clients.
+import ClientSelect from './ClientSelect';
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -15,33 +12,42 @@ function fileToBase64(file) {
   });
 }
 
-export default function NewTaskModal({ onClose, onCreated }) {
+export default function NewTaskModal({ onClose, onCreated, clientOptions }) {
   const [client, setClient] = useState('');
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [linksText, setLinksText] = useState('');
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]); // [{file, preview}]
   const [analyzing, setAnalyzing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [aiUrgency, setAiUrgency] = useState(null);
 
-  const handleImageSelect = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const newEntries = files.map((file) => ({ file, preview: URL.createObjectURL(file) }));
+    setImageFiles((prev) => [...prev, ...newEntries]);
+    e.target.value = ''; // allow re-selecting the same file again later
+  };
+
+  const removeImage = (index) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleAnalyze = async () => {
-    if (!imageFile) return;
+    if (imageFiles.length === 0) return;
     setAnalyzing(true);
     try {
-      const base64 = await fileToBase64(imageFile);
+      const images = await Promise.all(
+        imageFiles.map(async ({ file }) => ({
+          data: await fileToBase64(file),
+          mimeType: file.type,
+        }))
+      );
       const res = await fetch('/api/parse-task', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64, mimeType: imageFile.type, client }),
+        body: JSON.stringify({ images, client }),
       });
       const data = await res.json();
       if (data.draft) {
@@ -68,21 +74,25 @@ export default function NewTaskModal({ onClose, onCreated }) {
     setSubmitting(true);
     try {
       let screenshotImageIds = [];
-      if (imageFile) {
-        const base64 = await fileToBase64(imageFile);
-        const uploadRes = await fetch('/api/upload-task-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageBase64: base64,
-            mimeType: imageFile.type,
-            client,
-            taskTitle,
-            folderType: 'screenshots',
-          }),
-        });
-        const uploadData = await uploadRes.json();
-        if (uploadData.fileId) screenshotImageIds = [uploadData.fileId];
+      if (imageFiles.length > 0) {
+        const uploads = await Promise.all(
+          imageFiles.map(async ({ file }) => {
+            const base64 = await fileToBase64(file);
+            const res = await fetch('/api/upload-task-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                imageBase64: base64,
+                mimeType: file.type,
+                client,
+                taskTitle,
+                folderType: 'screenshots',
+              }),
+            });
+            return res.json();
+          })
+        );
+        screenshotImageIds = uploads.map((u) => u.fileId).filter(Boolean);
       }
 
       const links = linksText.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -114,28 +124,64 @@ export default function NewTaskModal({ onClose, onCreated }) {
         <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>+ New Task</div>
 
         <div style={{ border: '1px dashed #C8B89A', borderRadius: 10, padding: 14, marginBottom: 16, textAlign: 'center' }}>
-          {imagePreview ? (
-            <img src={imagePreview} alt="preview" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, marginBottom: 10 }} />
+          {imageFiles.length > 0 ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10, justifyContent: 'center' }}>
+              {imageFiles.map((img, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  <img
+                    src={img.preview}
+                    alt={`screenshot ${i + 1}`}
+                    style={{ width: 90, height: 90, objectFit: 'cover', borderRadius: 8 }}
+                  />
+                  <button
+                    onClick={() => removeImage(i)}
+                    style={{
+                      position: 'absolute',
+                      top: -6,
+                      right: -6,
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: '#C97B63',
+                      color: '#fff',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      lineHeight: '20px',
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
           ) : (
             <div style={{ fontSize: 12, color: '#999', marginBottom: 10 }}>
-              클라이언트와의 대화 스크린샷을 올리면 AI가 태스크를 정리해줘요
+              클라이언트와의 대화 스크린샷을 올리면 AI가 태스크를 정리해줘요 (여러 장 가능, 순서대로 이어서 읽어요)
             </div>
           )}
-          <input type="file" accept="image/*" capture="environment" onChange={handleImageSelect} style={{ fontSize: 12 }} />
-          {imageFile && (
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            onChange={handleImageSelect}
+            style={{ fontSize: 12 }}
+          />
+          {imageFiles.length > 0 && (
             <button
               onClick={handleAnalyze}
               disabled={analyzing}
               style={{ display: 'block', margin: '10px auto 0', padding: '8px 16px', background: '#8FA8C8', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             >
-              {analyzing ? '분석 중...' : '✨ AI로 분석하기'}
+              {analyzing ? '분석 중...' : `✨ AI로 분석하기 (${imageFiles.length}장)`}
             </button>
           )}
           {aiUrgency && <div style={{ fontSize: 11, color: '#8FA8C8', marginTop: 8 }}>AI 판단 긴급도: {aiUrgency}</div>}
         </div>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>클라이언트</label>
-        <input value={client} onChange={(e) => setClient(e.target.value)} placeholder="예: Sushi Modo" style={inputStyle} />
+        <ClientSelect value={client} onChange={setClient} options={clientOptions || []} />
 
         <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>태스크 제목</label>
         <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="예: 메뉴 사진 3장 새로 촬영 요청" style={inputStyle} />
