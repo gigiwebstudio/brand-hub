@@ -67,7 +67,10 @@ export async function POST(request) {
 
     if (data.error) {
       console.error('Gemini API error:', data.error);
-      return NextResponse.json({ error: 'Gemini API request failed' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Gemini API request failed', detail: data.error },
+        { status: 500 }
+      );
     }
 
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
@@ -87,6 +90,9 @@ export async function POST(request) {
     return NextResponse.json({ draft: parsed });
   } catch (err) {
     console.error('POST /api/parse-task error:', err);
-    return NextResponse.json({ error: 'Failed to parse screenshot' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to parse screenshot', detail: err.message },
+      { status: 500 }
+    );
   }
 }
