@@ -12,7 +12,7 @@ function fileToBase64(file) {
   });
 }
 
-export default function NewTaskModal({ onClose, onCreated, clientOptions }) {
+export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobile }) {
   const [client, setClient] = useState('');
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
@@ -82,11 +82,11 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions }) {
   return (
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-end', zIndex: 200 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 200 }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: '#fff', width: '100%', maxHeight: '90vh', overflowY: 'auto', borderRadius: '16px 16px 0 0', padding: 20 }}
+        style={{ background: '#fff', width: '100%', maxWidth: isMobile ? '100%' : 480, maxHeight: isMobile ? '90vh' : '85vh', overflowY: 'auto', borderRadius: isMobile ? '16px 16px 0 0' : 16, padding: 20 }}
       >
         <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>+ New Task</div>
 
