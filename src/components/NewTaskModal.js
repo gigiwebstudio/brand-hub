@@ -18,9 +18,7 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions }) {
   const [taskDescription, setTaskDescription] = useState('');
   const [linksText, setLinksText] = useState('');
   const [imageFiles, setImageFiles] = useState([]); // [{file, preview}]
-  const [analyzing, setAnalyzing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [aiUrgency, setAiUrgency] = useState(null);
 
   const handleImageSelect = (e) => {
     const files = Array.from(e.target.files || []);
@@ -34,38 +32,6 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions }) {
     setImageFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleAnalyze = async () => {
-    if (imageFiles.length === 0) return;
-    setAnalyzing(true);
-    try {
-      const images = await Promise.all(
-        imageFiles.map(async ({ file }) => ({
-          data: await fileToBase64(file),
-          mimeType: file.type,
-        }))
-      );
-      const res = await fetch('/api/parse-task', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ images, client }),
-      });
-      const data = await res.json();
-      if (data.draft) {
-        setTaskTitle(data.draft.taskTitle || '');
-        setTaskDescription(data.draft.taskDescription || '');
-        setAiUrgency(data.draft.urgency || null);
-        if (data.draft.mentionedLinks?.length) {
-          setLinksText(data.draft.mentionedLinks.join('\n'));
-        }
-      }
-    } catch (err) {
-      console.error('AI analyze failed:', err);
-      alert('AI 분석에 실패했어요. 직접 입력해주세요.');
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
   const handleSubmit = async () => {
     if (!taskTitle.trim()) {
       alert('태스크 제목을 입력해주세요.');
@@ -76,7 +42,7 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions }) {
       let screenshotImageIds = [];
       if (imageFiles.length > 0) {
         const uploads = await Promise.all(
-          imageFiles.map(async ({ file }) => {
+          imageFiles.map(async ({ file }, i) => {
             const base64 = await fileToBase64(file);
             const res = await fetch('/api/upload-task-image', {
               method: 'POST',
@@ -87,6 +53,7 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions }) {
                 client,
                 taskTitle,
                 folderType: 'screenshots',
+                index: i + 1,
               }),
             });
             return res.json();
@@ -124,7 +91,7 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions }) {
         <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>+ New Task</div>
 
         <div style={{ border: '1px dashed #C8B89A', borderRadius: 10, padding: 14, marginBottom: 16, textAlign: 'center' }}>
-          {imageFiles.length > 0 ? (
+          {imageFiles.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10, justifyContent: 'center' }}>
               {imageFiles.map((img, i) => (
                 <div key={i} style={{ position: 'relative' }}>
@@ -155,11 +122,10 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions }) {
                 </div>
               ))}
             </div>
-          ) : (
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 10 }}>
-              클라이언트와의 대화 스크린샷을 올리면 AI가 태스크를 정리해줘요 (여러 장 가능, 순서대로 이어서 읽어요)
-            </div>
           )}
+          <div style={{ fontSize: 12, color: '#999', marginBottom: 10 }}>
+            클라이언트와의 대화 스크린샷 첨부 (여러 장 가능)
+          </div>
           <input
             type="file"
             accept="image/*"
@@ -168,16 +134,6 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions }) {
             onChange={handleImageSelect}
             style={{ fontSize: 12 }}
           />
-          {imageFiles.length > 0 && (
-            <button
-              onClick={handleAnalyze}
-              disabled={analyzing}
-              style={{ display: 'block', margin: '10px auto 0', padding: '8px 16px', background: '#8FA8C8', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-            >
-              {analyzing ? '분석 중...' : `✨ AI로 분석하기 (${imageFiles.length}장)`}
-            </button>
-          )}
-          {aiUrgency && <div style={{ fontSize: 11, color: '#8FA8C8', marginTop: 8 }}>AI 판단 긴급도: {aiUrgency}</div>}
         </div>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>클라이언트</label>
