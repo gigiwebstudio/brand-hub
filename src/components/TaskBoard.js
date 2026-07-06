@@ -2,6 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import NewTaskModal from './NewTaskModal';
+import { clients } from '../app/clients';
+
+const OFFICIAL_CLIENT_NAMES = clients.filter((c) => c.active).map((c) => c.name);
 
 const STATUSES = [
   { key: 'not_started', label: 'Not Started', color: '#C8B89A' },
@@ -253,6 +256,9 @@ export default function TaskBoard() {
             setShowNewTask(false);
             fetchTasks();
           }}
+          clientOptions={[
+            ...new Set([...OFFICIAL_CLIENT_NAMES, ...tasks.map((t) => t.client).filter(Boolean)]),
+          ]}
         />
       )}
 
