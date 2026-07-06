@@ -11,7 +11,8 @@ import { NextResponse } from 'next/server';
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const SYSTEM_PROMPT = `You read screenshots of chat conversations between a marketing agency coworker and a client.
+const SYSTEM_PROMPT = `You read one or more screenshots of chat conversations between a marketing agency coworker and a client.
+When multiple screenshots are given, treat them as a continuous conversation in the order provided.
 Extract the task the client is requesting. Respond with ONLY valid JSON matching this shape:
 
 {
@@ -26,18 +27,23 @@ If the screenshot is unclear or doesn't contain a client request, still return y
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { imageBase64, mimeType, client } = body;
+    const { images, client } = body;
+    // images: [{ data: base64string, mimeType: 'image/jpeg' }, ...]
 
-    if (!imageBase64) {
-      return NextResponse.json({ error: 'imageBase64 is required' }, { status: 400 });
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return NextResponse.json({ error: 'images array is required' }, { status: 400 });
     }
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json({ error: 'GEMINI_API_KEY env var is not set' }, { status: 500 });
     }
 
     const userText = client
-      ? `클라이언트: ${client}. 위 스크린샷에서 태스크를 추출해줘.`
-      : '위 스크린샷에서 태스크를 추출해줘. 클라이언트 이름이 대화에 보이면 같이 알려줘.';
+      ? `클라이언트: ${client}. 위 스크린샷${images.length > 1 ? '들' : ''}을 순서대로 같이 읽고, 하나의 태스크로 정리해줘. 여러 장이면 서로 이어지는 대화/맥락으로 봐줘.`
+      : `위 스크린샷${images.length > 1 ? '들' : ''}을 순서대로 같이 읽고, 하나의 태스크로 정리해줘. 클라이언트 이름이 대화에 보이면 같이 알려줘.`;
+
+    const imageParts = images.map((img) => ({
+      inline_data: { mime_type: img.mimeType || 'image/jpeg', data: img.data },
+    }));
 
     const response = await fetch(`${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`, {
       method: 'POST',
@@ -47,15 +53,12 @@ export async function POST(request) {
         contents: [
           {
             role: 'user',
-            parts: [
-              { inline_data: { mime_type: mimeType || 'image/jpeg', data: imageBase64 } },
-              { text: userText },
-            ],
+            parts: [...imageParts, { text: userText }],
           },
         ],
         generationConfig: {
           responseMimeType: 'application/json',
-          maxOutputTokens: 500,
+          maxOutputTokens: 600,
         },
       }),
     });
