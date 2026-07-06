@@ -5,10 +5,14 @@ import { Readable } from 'stream';
 // Structure created in Drive:
 // Brand Hub Tasks/ (BRAND_HUB_TASKS_FOLDER_ID)
 //   └─ [Client Name]/
-//        ├─ Screenshots/   (coworker's client-conversation captures)
-//        └─ Designs/        (Agora's finished design output)
-//
-// Filenames auto-saved as: {taskTitle}_{YYYY-MM-DD}.{ext}
+//        ├─ Screenshots/
+//        │     └─ [taskTitle]_[YYYY-MM-DD]/   <- one subfolder per task, groups multi-image uploads
+//        │           ├─ 1.jpg
+//        │           └─ 2.jpg
+//        └─ Designs/
+//              └─ [taskTitle]_[YYYY-MM-DD]/
+//                    ├─ 1.jpg
+//                    └─ 2.jpg
 
 const PARENT_FOLDER_ID = process.env.BRAND_HUB_TASKS_FOLDER_ID;
 
@@ -42,6 +46,7 @@ function sanitizeForFilename(str) {
   return (str || 'task')
     .trim()
     .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, '_')
     .slice(0, 60);
 }
 
@@ -54,8 +59,9 @@ function extFromMimeType(mimeType) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { imageBase64, mimeType, client, taskTitle, folderType } = body;
+    const { imageBase64, mimeType, client, taskTitle, folderType, index } = body;
     // folderType: 'screenshots' | 'designs'
+    // index: 1-based position of this image within the task's upload batch (for filename)
 
     if (!imageBase64) {
       return NextResponse.json({ error: 'imageBase64 is required' }, { status: 400 });
@@ -71,17 +77,21 @@ export async function POST(request) {
     const drive = google.drive({ version: 'v3', auth });
 
     const clientFolderId = await findOrCreateFolder(drive, client?.trim() || 'Unsorted', PARENT_FOLDER_ID);
-    const subFolderName = folderType === 'designs' ? 'Designs' : 'Screenshots';
-    const subFolderId = await findOrCreateFolder(drive, subFolderName, clientFolderId);
+    const typeFolderName = folderType === 'designs' ? 'Designs' : 'Screenshots';
+    const typeFolderId = await findOrCreateFolder(drive, typeFolderName, clientFolderId);
 
     const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    const filename = `${sanitizeForFilename(taskTitle)}_${dateStr}.${extFromMimeType(mimeType)}`;
+    const taskFolderName = `${sanitizeForFilename(taskTitle)}_${dateStr}`;
+    const taskFolderId = await findOrCreateFolder(drive, taskFolderName, typeFolderId);
+
+    const ext = extFromMimeType(mimeType);
+    const filename = `${index || 1}.${ext}`;
 
     const buffer = Buffer.from(imageBase64, 'base64');
     const stream = Readable.from(buffer);
 
     const uploaded = await drive.files.create({
-      requestBody: { name: filename, parents: [subFolderId] },
+      requestBody: { name: filename, parents: [taskFolderId] },
       media: { mimeType: mimeType || 'image/jpeg', body: stream },
       fields: 'id, webViewLink',
     });
@@ -94,6 +104,7 @@ export async function POST(request) {
     return NextResponse.json({
       fileId: uploaded.data.id,
       filename,
+      folder: taskFolderName,
       thumbnailUrl: `https://drive.google.com/thumbnail?id=${uploaded.data.id}&sz=w600`,
     });
   } catch (err) {
