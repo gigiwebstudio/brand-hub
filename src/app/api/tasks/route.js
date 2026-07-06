@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
-import { getAuth, rowToTask, taskToRow, appendTask, RANGE, getAllTasks } from '../../../lib/tasksSheet';
+import { getAuth, rowToTask, taskToRow, appendTask, getAllTasks, clearTaskRow } from '../../../lib/tasksSheet';
 
 const SHEET_ID = process.env.BRAND_HUB_SHEET_ID;
 const TAB_NAME = 'Tasks';
@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ tasks });
   } catch (err) {
     console.error('GET /api/tasks error:', err);
-    return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch tasks', detail: err.message }, { status: 500 });
   }
 }
 
@@ -22,7 +22,7 @@ export async function POST(request) {
     return NextResponse.json({ task });
   } catch (err) {
     console.error('POST /api/tasks error:', err);
-    return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create task', detail: err.message }, { status: 500 });
   }
 }
 
@@ -67,6 +67,21 @@ export async function PATCH(request) {
     return NextResponse.json({ task: mergedTask });
   } catch (err) {
     console.error('PATCH /api/tasks error:', err);
-    return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update task', detail: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const rowIndex = searchParams.get('rowIndex');
+    if (!rowIndex) {
+      return NextResponse.json({ error: 'rowIndex is required' }, { status: 400 });
+    }
+    await clearTaskRow(rowIndex);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/tasks error:', err);
+    return NextResponse.json({ error: 'Failed to delete task', detail: err.message }, { status: 500 });
   }
 }
