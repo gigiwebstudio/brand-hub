@@ -1,7 +1,7 @@
 {
   "name": "Brand Hub",
   "short_name": "Brand Hub",
-  "description": "Gigi Web Studio client brand hub & task board",
+  "description": "Agora Production client brand hub & task board",
   "start_url": "/tasks",
   "display": "standalone",
   "background_color": "#faf7f0",
