@@ -2,7 +2,7 @@ import { google } from 'googleapis';
 
 const SHEET_ID = process.env.BRAND_HUB_SHEET_ID;
 const TAB_NAME = 'Tasks';
-export const RANGE = `${TAB_NAME}!A2:J`;
+export const RANGE = `${TAB_NAME}!A2:K`;
 
 // Column order:
 // id | client | taskTitle | taskDescription | status | links | screenshotImageIds | designImageIds | comments | createdAt | updatedAt
@@ -98,6 +98,6 @@ export async function clearTaskRow(rowIndex) {
   const sheets = google.sheets({ version: 'v4', auth });
   await sheets.spreadsheets.values.clear({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_NAME}!A${rowIndex}:J${rowIndex}`,
+    range: `${TAB_NAME}!A${rowIndex}:K${rowIndex}`,
   });
 }
