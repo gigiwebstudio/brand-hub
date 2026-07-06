@@ -90,3 +90,14 @@ export async function getAllTasks() {
   const rows = res.data.values || [];
   return rows.map((row, i) => rowToTask(row, i + 2)).filter((t) => t.id);
 }
+
+// Sheets row deletion is unreliable via the API, so "delete" clears the row's
+// content instead. GET already filters out rows with an empty id.
+export async function clearTaskRow(rowIndex) {
+  const auth = getAuth();
+  const sheets = google.sheets({ version: 'v4', auth });
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: SHEET_ID,
+    range: `${TAB_NAME}!A${rowIndex}:J${rowIndex}`,
+  });
+}
