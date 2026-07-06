@@ -16,15 +16,6 @@ const STATUSES = [
 
 const POLL_INTERVAL_MS = 12000;
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 function formatDate(iso) {
   if (!iso) return '';
   try {
@@ -49,14 +40,14 @@ export default function TaskBoard() {
   const [isMobile, setIsMobile] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [newLink, setNewLink] = useState('');
-  const [uploadingDesign, setUploadingDesign] = useState(false);
-  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [descDraft, setDescDraft] = useState('');
+  const [driveImages, setDriveImages] = useState({ screenshots: [], designs: [] });
+  const [loadingImages, setLoadingImages] = useState(false);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -162,46 +153,34 @@ export default function TaskBoard() {
     }
   };
 
-  const uploadImage = async (task, file, folderType, currentCount) => {
-    const base64 = await fileToBase64(file);
-    const res = await fetch('/api/upload-task-image', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        imageBase64: base64,
-        mimeType: file.type,
-        client: task.client,
-        taskTitle: task.taskTitle,
-        folderType,
-        index: currentCount + 1,
-        dateStr: task.createdAt ? task.createdAt.slice(0, 10) : undefined,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || data.error);
-    return data.fileId;
-  };
-
-  const handleMultiUpload = async (task, files, folderType) => {
-    const setUploading = folderType === 'designs' ? setUploadingDesign : setUploadingScreenshot;
-    const idField = folderType === 'designs' ? 'designImageIds' : 'screenshotImageIds';
-    setUploading(true);
+  const loadDriveImages = useCallback(async (task) => {
+    if (!task) return;
+    setLoadingImages(true);
     try {
-      let count = task[idField].length;
-      const newIds = [];
-      for (const file of files) {
-        const fileId = await uploadImage(task, file, folderType, count);
-        newIds.push(fileId);
-        count += 1;
-      }
-      await patchTask(task, { [idField]: [...task[idField], ...newIds] });
+      const dateStr = task.createdAt ? task.createdAt.slice(0, 10) : undefined;
+      const [screenshotsRes, designsRes] = await Promise.all([
+        fetch('/api/list-task-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client: task.client, taskTitle: task.taskTitle, dateStr, folderType: 'screenshots' }),
+        }).then((r) => r.json()),
+        fetch('/api/list-task-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client: task.client, taskTitle: task.taskTitle, dateStr, folderType: 'designs' }),
+        }).then((r) => r.json()),
+      ]);
+      setDriveImages({ screenshots: screenshotsRes.images || [], designs: designsRes.images || [] });
     } catch (err) {
-      console.error('Failed to upload:', err);
-      alert(`이미지 업로드에 실패했어요: ${err.message}`);
+      console.error('Failed to list drive images:', err);
     } finally {
-      setUploading(false);
+      setLoadingImages(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (selectedTask) loadDriveImages(selectedTask);
+  }, [selectedTask?.id]);
 
   const openDriveFolder = async (task, folderType) => {
     try {
@@ -265,11 +244,11 @@ export default function TaskBoard() {
           {task.taskDescription}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {task.screenshotImageIds.length > 0 && <span style={{ fontSize: 11, color: '#888' }}>📷 {task.screenshotImageIds.length}</span>}
-        {task.designImageIds.length > 0 && <span style={{ fontSize: 11, color: '#888' }}>🎨 {task.designImageIds.length}</span>}
-        {task.links.length > 0 && <span style={{ fontSize: 11, color: '#888' }}>🔗 {task.links.length}</span>}
-      </div>
+      {task.links.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, color: '#888' }}>🔗 {task.links.length}</span>
+        </div>
+      )}
     </div>
   );
 
@@ -470,67 +449,55 @@ export default function TaskBoard() {
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#999' }}>📷 SCREENSHOTS</div>
-                <button
-                  onClick={() => openDriveFolder(selectedTask, 'screenshots')}
-                  style={{ border: 'none', background: 'none', color: '#3768AB', fontSize: 11, cursor: 'pointer' }}
-                >
-                  📁 Drive에서 열기
-                </button>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => loadDriveImages(selectedTask)} style={{ border: 'none', background: 'none', color: '#999', fontSize: 11, cursor: 'pointer' }}>
+                    🔄 새로고침
+                  </button>
+                  <button onClick={() => openDriveFolder(selectedTask, 'screenshots')} style={{ border: 'none', background: 'none', color: '#3768AB', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                    📁 여기에 사진 추가하기
+                  </button>
+                </div>
               </div>
-              {selectedTask.screenshotImageIds.length > 0 && (
-                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 8 }}>
-                  {selectedTask.screenshotImageIds.map((id) => (
-                    <a key={id} href={`https://drive.google.com/file/d/${id}/view`} target="_blank" rel="noopener noreferrer">
-                      <img src={`https://drive.google.com/thumbnail?id=${id}&sz=w400`} alt="screenshot" style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8 }} />
+              {loadingImages ? (
+                <div style={{ fontSize: 12, color: '#bbb' }}>불러오는 중...</div>
+              ) : driveImages.screenshots.length > 0 ? (
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+                  {driveImages.screenshots.map((img) => (
+                    <a key={img.id} href={img.viewUrl} target="_blank" rel="noopener noreferrer">
+                      <img src={img.thumbnailUrl} alt={img.name} style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8 }} />
                     </a>
                   ))}
                 </div>
+              ) : (
+                <div style={{ fontSize: 12, color: '#bbb' }}>아직 없어요. &quot;여기에 사진 추가하기&quot;로 Drive 폴더 열어서 넣어주세요.</div>
               )}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  if (files.length) handleMultiUpload(selectedTask, files, 'screenshots');
-                  e.target.value = '';
-                }}
-                style={{ fontSize: 12 }}
-              />
-              {uploadingScreenshot && <span style={{ fontSize: 11, color: '#999', marginLeft: 8 }}>업로드 중...</span>}
             </div>
 
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#999' }}>🎨 DESIGNS</div>
-                <button
-                  onClick={() => openDriveFolder(selectedTask, 'designs')}
-                  style={{ border: 'none', background: 'none', color: '#3768AB', fontSize: 11, cursor: 'pointer' }}
-                >
-                  📁 Drive에서 열기
-                </button>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => loadDriveImages(selectedTask)} style={{ border: 'none', background: 'none', color: '#999', fontSize: 11, cursor: 'pointer' }}>
+                    🔄 새로고침
+                  </button>
+                  <button onClick={() => openDriveFolder(selectedTask, 'designs')} style={{ border: 'none', background: 'none', color: '#3768AB', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                    📁 여기에 디자인 추가하기
+                  </button>
+                </div>
               </div>
-              {selectedTask.designImageIds.length > 0 && (
-                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 8 }}>
-                  {selectedTask.designImageIds.map((id) => (
-                    <a key={id} href={`https://drive.google.com/file/d/${id}/view`} target="_blank" rel="noopener noreferrer">
-                      <img src={`https://drive.google.com/thumbnail?id=${id}&sz=w400`} alt="design" style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8 }} />
+              {loadingImages ? (
+                <div style={{ fontSize: 12, color: '#bbb' }}>불러오는 중...</div>
+              ) : driveImages.designs.length > 0 ? (
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+                  {driveImages.designs.map((img) => (
+                    <a key={img.id} href={img.viewUrl} target="_blank" rel="noopener noreferrer">
+                      <img src={img.thumbnailUrl} alt={img.name} style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8 }} />
                     </a>
                   ))}
                 </div>
+              ) : (
+                <div style={{ fontSize: 12, color: '#bbb' }}>아직 없어요. &quot;여기에 디자인 추가하기&quot;로 Drive 폴더 열어서 넣어주세요.</div>
               )}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  if (files.length) handleMultiUpload(selectedTask, files, 'designs');
-                  e.target.value = '';
-                }}
-                style={{ fontSize: 12 }}
-              />
-              {uploadingDesign && <span style={{ fontSize: 11, color: '#999', marginLeft: 8 }}>업로드 중...</span>}
             </div>
 
             <div style={{ fontSize: 11, fontWeight: 700, color: '#999', marginBottom: 6 }}>🔗 LINKS</div>
