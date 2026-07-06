@@ -108,6 +108,7 @@ export default function TaskBoard() {
           client: task.client,
           taskTitle: task.taskTitle,
           folderType: 'designs',
+          index: task.designImageIds.length + 1,
         }),
       });
       const data = await res.json();
