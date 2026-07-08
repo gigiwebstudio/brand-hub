@@ -6,6 +6,23 @@ import { clients } from '../app/clients';
 
 const OFFICIAL_CLIENT_NAMES = clients.filter((c) => c.active).map((c) => c.name);
 
+// Pull each client's real brand color from clients.js so cards are easy to
+// tell apart at a glance, especially when titles repeat (e.g. weekly recurring tasks).
+function getClientColor(clientName) {
+  const match = clients.find((c) => c.name === clientName);
+  return match?.colors?.[0] || '#8FA8C8';
+}
+
+function getReadableTextColor(hexColor) {
+  const hex = hexColor.replace('#', '');
+  if (hex.length !== 6) return '#1a1a1a';
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? '#1a1a1a' : '#ffffff';
+}
+
 const STATUSES = [
   { key: 'not_started', label: 'Not Started', color: '#C8B89A' },
   { key: 'in_progress', label: 'In Progress', color: '#8FA8C8' },
@@ -205,34 +222,51 @@ export default function TaskBoard() {
 
   const columnTasks = (statusKey) => tasks.filter((t) => t.status === statusKey);
 
-  const renderCard = (task) => (
-    <div
-      key={task.id}
-      draggable={!isMobile}
-      onDragStart={() => setDraggedTaskId(task.id)}
-      onDragEnd={() => setDraggedTaskId(null)}
-      onClick={() => {
-        setSelectedTask(task);
-        setEditingTitle(false);
-        setEditingDesc(false);
-      }}
-      style={{
-        background: '#fff',
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 10,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-        cursor: 'pointer',
-        border: '1px solid #eee',
-        opacity: draggedTaskId === task.id ? 0.4 : 1,
-      }}
-    >
-      <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>{task.client}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 6 }}>{task.taskTitle}</div>
-      {task.taskDescription && (
+  const renderCard = (task) => {
+    const clientColor = getClientColor(task.client);
+    const textColor = getReadableTextColor(clientColor);
+    return (
+      <div
+        key={task.id}
+        draggable={!isMobile}
+        onDragStart={() => setDraggedTaskId(task.id)}
+        onDragEnd={() => setDraggedTaskId(null)}
+        onClick={() => {
+          setSelectedTask(task);
+          setEditingTitle(false);
+          setEditingDesc(false);
+        }}
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          padding: 14,
+          marginBottom: 10,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+          cursor: 'pointer',
+          border: '1px solid #eee',
+          borderLeft: `4px solid ${clientColor}`,
+          opacity: draggedTaskId === task.id ? 0.4 : 1,
+        }}
+      >
         <div
           style={{
-            fontSize: 12,
+            display: 'inline-block',
+            fontSize: 11,
+            fontWeight: 700,
+            color: textColor,
+            background: clientColor,
+            padding: '3px 9px',
+            borderRadius: 20,
+            marginBottom: 8,
+          }}
+        >
+          {task.client}
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 6 }}>{task.taskTitle}</div>
+        {task.taskDescription && (
+          <div
+            style={{
+              fontSize: 12,
             color: '#777',
             marginBottom: 8,
             display: '-webkit-box',
@@ -250,7 +284,8 @@ export default function TaskBoard() {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   return (
     <div style={{ maxWidth: 1300, margin: '0 auto', padding: '16px' }}>
