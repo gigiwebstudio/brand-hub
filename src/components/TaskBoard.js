@@ -38,6 +38,7 @@ export default function TaskBoard() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('not_started');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showNewTask, setShowNewTask] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -206,7 +207,33 @@ export default function TaskBoard() {
     }
   };
 
-  const columnTasks = (statusKey) => tasks.filter((t) => t.status === statusKey);
+  const ARCHIVE_AFTER_DAYS = 7;
+
+  const isRecentlyCompleted = (task) => {
+    if (!task.updatedAt) return true; // no timestamp, don't hide it
+    const ageMs = Date.now() - new Date(task.updatedAt).getTime();
+    return ageMs < ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+  };
+
+  const matchesSearch = (task) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    return (
+      task.client.toLowerCase().includes(q) ||
+      task.taskTitle.toLowerCase().includes(q) ||
+      task.taskDescription.toLowerCase().includes(q)
+    );
+  };
+
+  const columnTasks = (statusKey) =>
+    tasks.filter((t) => {
+      if (t.status !== statusKey) return false;
+      if (!matchesSearch(t)) return false;
+      // Completed tasks older than a week are hidden from the board view
+      // (still findable via search above) to keep that column from piling up.
+      if (statusKey === 'completed' && !searchQuery.trim() && !isRecentlyCompleted(t)) return false;
+      return true;
+    });
 
   const renderCard = (task) => {
     return (
@@ -272,7 +299,7 @@ export default function TaskBoard() {
 
   return (
     <div style={{ maxWidth: 1300, margin: '0 auto', padding: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a' }}>✅ Tasks</h1>
         <button
           onClick={() => setShowNewTask(true)}
@@ -281,6 +308,21 @@ export default function TaskBoard() {
           + New Task
         </button>
       </div>
+
+      <input
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="🔍 클라이언트, 제목, 설명으로 검색... (1주일 지난 완료 태스크도 여기서 찾아져요)"
+        style={{
+          width: '100%',
+          padding: '9px 14px',
+          borderRadius: 8,
+          border: '1px solid #ddd',
+          fontSize: 13,
+          marginBottom: 16,
+          boxSizing: 'border-box',
+        }}
+      />
 
       {isMobile && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto' }}>
