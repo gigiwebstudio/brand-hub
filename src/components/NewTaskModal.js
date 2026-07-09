@@ -25,26 +25,32 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
         body: JSON.stringify({ client, taskTitle, taskDescription, links }),
       });
 
-      // Open the (auto-created) Screenshots folder for this task so a
-      // conversation screenshot can be dropped in right away, if wanted.
-      try {
-        const folderRes = await fetch('/api/ensure-task-folder', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ client, taskTitle, folderType: 'screenshots' }),
-        });
-        const folderData = await folderRes.json();
-        if (folderData.folderUrl) window.open(folderData.folderUrl, '_blank');
-      } catch (folderErr) {
-        console.warn('Could not open screenshots folder:', folderErr);
-      }
-
       onCreated();
     } catch (err) {
       console.error('Failed to create task:', err);
       alert('태스크 생성에 실패했어요. 다시 시도해주세요.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openScreenshotFolder = async () => {
+    if (!taskTitle.trim()) {
+      alert('폴더를 만들려면 태스크 제목을 먼저 입력해주세요.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/ensure-task-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client, taskTitle, folderType: 'screenshots' }),
+      });
+      const data = await res.json();
+      if (data.folderUrl) window.open(data.folderUrl, '_blank');
+      else alert('폴더 링크를 가져오지 못했어요.');
+    } catch (err) {
+      console.error('Failed to open screenshot folder:', err);
+      alert('폴더 열기에 실패했어요.');
     }
   };
 
@@ -57,10 +63,29 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
         onClick={(e) => e.stopPropagation()}
         style={{ background: '#fff', width: '100%', maxWidth: isMobile ? '100%' : 480, maxHeight: isMobile ? '90vh' : '85vh', overflowY: 'auto', borderRadius: isMobile ? '16px 16px 0 0' : 16, padding: 20 }}
       >
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>+ New Task</div>
-        <div style={{ fontSize: 12, color: '#999', marginBottom: 16 }}>
-          스크린샷/디자인은 태스크 만든 다음, 상세 화면에서 Drive 폴더로 바로 추가할 수 있어요.
-        </div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>+ New Task</div>
+
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>스크린샷</label>
+        <button
+          type="button"
+          onClick={openScreenshotFolder}
+          style={{
+            display: 'block',
+            width: '100%',
+            padding: '10px 0',
+            marginTop: 4,
+            marginBottom: 12,
+            borderRadius: 8,
+            border: '1px dashed #C8B89A',
+            background: '#faf7f0',
+            color: '#8FA8C8',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          📎 스크린샷 폴더 열기 (Drive에 드래그 앤 드롭)
+        </button>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>클라이언트</label>
         <ClientSelect value={client} onChange={setClient} options={clientOptions || []} />
