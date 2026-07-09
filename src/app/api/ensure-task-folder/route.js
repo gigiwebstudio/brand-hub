@@ -54,14 +54,15 @@ export async function POST(request) {
     const drive = google.drive({ version: 'v3', auth });
 
     const clientFolderId = await findOrCreateFolder(drive, client?.trim() || 'Unsorted', PARENT_FOLDER_ID);
-    const typeFolderName = folderType === 'designs' ? 'Designs' : 'Screenshots';
-    const typeFolderId = await findOrCreateFolder(drive, typeFolderName, clientFolderId);
 
     const resolvedDate = dateStr || new Date().toISOString().slice(0, 10);
     const taskFolderName = `${sanitizeForFilename(taskTitle)}_${resolvedDate}`;
-    const taskFolderId = await findOrCreateFolder(drive, taskFolderName, typeFolderId);
+    const taskFolderId = await findOrCreateFolder(drive, taskFolderName, clientFolderId);
 
-    return NextResponse.json({ folderUrl: `https://drive.google.com/drive/folders/${taskFolderId}` });
+    const typeFolderName = folderType === 'designs' ? 'Designs' : 'Screenshots';
+    const typeFolderId = await findOrCreateFolder(drive, typeFolderName, taskFolderId);
+
+    return NextResponse.json({ folderUrl: `https://drive.google.com/drive/folders/${typeFolderId}` });
   } catch (err) {
     console.error('POST /api/ensure-task-folder error:', err);
     return NextResponse.json({ error: 'Failed to prepare folder', detail: err.message }, { status: 500 });
