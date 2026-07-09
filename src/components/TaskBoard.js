@@ -476,7 +476,7 @@ export default function TaskBoard() {
                   setDescDraft(selectedTask.taskDescription || '');
                   setEditingDesc(true);
                 }}
-                style={{ fontSize: 13, color: '#666', marginBottom: 10, lineHeight: 1.5, cursor: 'text' }}
+                style={{ fontSize: 13, color: '#666', marginBottom: 10, lineHeight: 1.5, cursor: 'text', whiteSpace: 'pre-wrap' }}
               >
                 {selectedTask.taskDescription || <span style={{ color: '#bbb' }}>상세 설명 추가...</span>} <span style={{ fontSize: 11, color: '#bbb' }}>✏️</span>
               </div>
