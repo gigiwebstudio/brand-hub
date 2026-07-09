@@ -44,17 +44,17 @@ export async function POST(request) {
     const clientFolderId = await findFolder(drive, client?.trim() || 'Unsorted', PARENT_FOLDER_ID);
     if (!clientFolderId) return NextResponse.json({ images: [], folderExists: false });
 
-    const typeFolderName = folderType === 'designs' ? 'Designs' : 'Screenshots';
-    const typeFolderId = await findFolder(drive, typeFolderName, clientFolderId);
-    if (!typeFolderId) return NextResponse.json({ images: [], folderExists: false });
-
     const resolvedDate = dateStr || new Date().toISOString().slice(0, 10);
     const taskFolderName = `${sanitizeForFilename(taskTitle)}_${resolvedDate}`;
-    const taskFolderId = await findFolder(drive, taskFolderName, typeFolderId);
+    const taskFolderId = await findFolder(drive, taskFolderName, clientFolderId);
     if (!taskFolderId) return NextResponse.json({ images: [], folderExists: false });
 
+    const typeFolderName = folderType === 'designs' ? 'Designs' : 'Screenshots';
+    const typeFolderId = await findFolder(drive, typeFolderName, taskFolderId);
+    if (!typeFolderId) return NextResponse.json({ images: [], folderExists: false });
+
     const filesRes = await drive.files.list({
-      q: `'${taskFolderId}' in parents and trashed = false and (mimeType contains 'image/')`,
+      q: `'${typeFolderId}' in parents and trashed = false and (mimeType contains 'image/')`,
       fields: 'files(id, name, thumbnailLink, webViewLink, createdTime)',
       orderBy: 'name',
     });
@@ -69,7 +69,7 @@ export async function POST(request) {
     return NextResponse.json({
       images,
       folderExists: true,
-      folderUrl: `https://drive.google.com/drive/folders/${taskFolderId}`,
+      folderUrl: `https://drive.google.com/drive/folders/${typeFolderId}`,
     });
   } catch (err) {
     console.error('POST /api/list-task-images error:', err);
