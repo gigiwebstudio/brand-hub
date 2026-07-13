@@ -72,9 +72,6 @@ export default function BrandHub() {
           <a href="/calendar" style={{ padding: '7px 14px', background: '#C8B89A', color: '#1a1a1a', borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
             📅 캘린더
           </a>
-           <a href="/tasks" style={{ padding: '7px 14px', background: '#8FA8C8', color: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
-            ✅ Tasks
-          </a>
           <div style={{ color: "#555", fontSize: 12 }}>{filtered.length} clients</div>
         </div>
         </div>
@@ -181,10 +178,32 @@ export default function BrandHub() {
                   </div>
                 </div>
                 <div style={{ background: "#FFF", borderRadius: 12, padding: 20 }}>
-                  <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>Social & Web</div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <a href={`https://instagram.com/${selected.instagram.replace("@", "")}`} target="_blank" rel="noopener noreferrer" style={{ padding: "9px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", textDecoration: "none" }}>📸 {selected.instagram} ↗</a>
-                    <a href={selected.website} target="_blank" rel="noopener noreferrer" style={{ padding: "9px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", textDecoration: "none" }}>🌐 {selected.website.replace("https://", "")}</a>
+                  <div style={{ fontSize: 10, color: "#999", letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>Contact & Social</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <a href={`https://instagram.com/${selected.instagram.replace("@", "")}`} target="_blank" rel="noopener noreferrer"
+                        style={{ padding: "9px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", textDecoration: "none" }}>
+                        📸 {selected.instagram} ↗
+                      </a>
+                      <a href={selected.website} target="_blank" rel="noopener noreferrer"
+                        style={{ padding: "9px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", textDecoration: "none" }}>
+                        🌐 {selected.website.replace("https://", "")}
+                      </a>
+                      {selected.phone && (
+                        <a href={`tel:${selected.phone}`}
+                          style={{ padding: "9px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", textDecoration: "none" }}>
+                          📞 {selected.phone}
+                        </a>
+                      )}
+                    </div>
+                    {selected.address && (
+                      <a href={`https://maps.google.com/?q=${encodeURIComponent(selected.address)}`} target="_blank" rel="noopener noreferrer"
+                        style={{ padding: "10px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", textDecoration: "none", display: "flex", alignItems: "flex-start", gap: 8, lineHeight: 1.5 }}>
+                        <span>📍</span>
+                        <span style={{ flex: 1 }}>{selected.address}</span>
+                        <span style={{ color: "#BBB", flexShrink: 0 }}>↗</span>
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
