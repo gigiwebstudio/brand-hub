@@ -186,7 +186,7 @@ function generateClientContext(client) {
 - **Name:** ${client.name} (${client.nameKo})
 - **Industry:** ${client.category}
 - **Instagram:** ${client.instagram}
-- **Website:** ${client.website}
+- **Website:** ${client.website}${client.phone ? `\n- **Phone:** ${client.phone}` : ''}${client.address ? `\n- **Address:** ${client.address}` : ''}
 
 ## Brand Colors
 ${client.colors.map((c, i) => `- ${client.colorNames[i]}: ${c}`).join('\n')}
