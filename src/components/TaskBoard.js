@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import NewTaskModal from './NewTaskModal';
 import { clients } from '../app/clients';
 
@@ -42,6 +42,7 @@ export default function TaskBoard() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [identity, setIdentity] = useState(null); // 'Agora' | '코워커'
   const [newComment, setNewComment] = useState('');
   const [newLink, setNewLink] = useState('');
   const [draggedTaskId, setDraggedTaskId] = useState(null);
@@ -52,6 +53,8 @@ export default function TaskBoard() {
   const [descDraft, setDescDraft] = useState('');
   const [driveImages, setDriveImages] = useState({ screenshots: [], designs: [] });
   const [loadingImages, setLoadingImages] = useState(false);
+  const [lightbox, setLightbox] = useState(null); // { images: [...], index: 0 }
+  const touchStartXRef = useRef(null);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -78,6 +81,16 @@ export default function TaskBoard() {
     window.addEventListener('resize', checkWidth);
     return () => window.removeEventListener('resize', checkWidth);
   }, []);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem('brandhub_identity');
+    if (saved) setIdentity(saved);
+  }, []);
+
+  const chooseIdentity = (name) => {
+    window.localStorage.setItem('brandhub_identity', name);
+    setIdentity(name);
+  };
 
   const updateStatus = async (task, newStatus) => {
     if (!task || task.status === newStatus) return;
@@ -120,7 +133,8 @@ export default function TaskBoard() {
 
   const submitComment = async (task) => {
     if (!newComment.trim()) return;
-    const ok = await patchTask(task, { appendComment: newComment.trim() });
+    const author = identity || '익명';
+    const ok = await patchTask(task, { appendComment: `${author}: ${newComment.trim()}` });
     if (ok) setNewComment('');
   };
 
@@ -308,6 +322,45 @@ export default function TaskBoard() {
           + New Task
         </button>
       </div>
+
+      {identity ? (
+        <div style={{ fontSize: 11, color: '#aaa', marginBottom: 10 }}>
+          👤 <strong style={{ color: '#666' }}>{identity}</strong>(으)로 코멘트 남기는 중 ·{' '}
+          <button
+            onClick={() => setIdentity(null)}
+            style={{ border: 'none', background: 'none', color: '#8FA8C8', fontSize: 11, cursor: 'pointer', padding: 0 }}
+          >
+            바꾸기
+          </button>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 14px',
+            background: '#faf7f0',
+            borderRadius: 8,
+            marginBottom: 12,
+            fontSize: 12,
+          }}
+        >
+          <span style={{ color: '#666' }}>코멘트에 이름 표시하려면 선택해주세요:</span>
+          <button
+            onClick={() => chooseIdentity('Agora')}
+            style={{ padding: '5px 12px', borderRadius: 20, border: '1px solid #C8B89A', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            저는 Agora예요
+          </button>
+          <button
+            onClick={() => chooseIdentity('코워커')}
+            style={{ padding: '5px 12px', borderRadius: 20, border: '1px solid #8FA8C8', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            저는 코워커예요
+          </button>
+        </div>
+      )}
 
       <input
         value={searchQuery}
@@ -522,10 +575,14 @@ export default function TaskBoard() {
                 <div style={{ fontSize: 12, color: '#bbb' }}>불러오는 중...</div>
               ) : driveImages.screenshots.length > 0 ? (
                 <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
-                  {driveImages.screenshots.map((img) => (
-                    <a key={img.id} href={img.viewUrl} target="_blank" rel="noopener noreferrer">
-                      <img src={img.thumbnailUrl} alt={img.name} style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8 }} />
-                    </a>
+                  {driveImages.screenshots.map((img, i) => (
+                    <img
+                      key={img.id}
+                      src={img.thumbnailUrl}
+                      alt={img.name}
+                      onClick={() => setLightbox({ images: driveImages.screenshots, index: i })}
+                      style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8, cursor: 'pointer' }}
+                    />
                   ))}
                 </div>
               ) : (
@@ -549,10 +606,14 @@ export default function TaskBoard() {
                 <div style={{ fontSize: 12, color: '#bbb' }}>불러오는 중...</div>
               ) : driveImages.designs.length > 0 ? (
                 <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
-                  {driveImages.designs.map((img) => (
-                    <a key={img.id} href={img.viewUrl} target="_blank" rel="noopener noreferrer">
-                      <img src={img.thumbnailUrl} alt={img.name} style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8 }} />
-                    </a>
+                  {driveImages.designs.map((img, i) => (
+                    <img
+                      key={img.id}
+                      src={img.thumbnailUrl}
+                      alt={img.name}
+                      onClick={() => setLightbox({ images: driveImages.designs, index: i })}
+                      style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8, cursor: 'pointer' }}
+                    />
                   ))}
                 </div>
               ) : (
@@ -609,6 +670,115 @@ export default function TaskBoard() {
               <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{selectedTask.comments}</div>
             )}
           </div>
+        </div>
+      )}
+
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          onTouchStart={(e) => {
+            touchStartXRef.current = e.touches[0].clientX;
+          }}
+          onTouchEnd={(e) => {
+            if (touchStartXRef.current == null) return;
+            const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+            const SWIPE_THRESHOLD = 50;
+            if (deltaX > SWIPE_THRESHOLD) {
+              setLightbox((prev) =>
+                prev ? { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length } : prev
+              );
+            } else if (deltaX < -SWIPE_THRESHOLD) {
+              setLightbox((prev) => (prev ? { ...prev, index: (prev.index + 1) % prev.images.length } : prev));
+            }
+            touchStartXRef.current = null;
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 300,
+          }}
+        >
+          <button
+            onClick={() => setLightbox(null)}
+            style={{
+              position: 'absolute',
+              top: 16,
+              right: 20,
+              border: 'none',
+              background: 'none',
+              color: '#fff',
+              fontSize: 28,
+              cursor: 'pointer',
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+
+          {lightbox.images.length > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightbox((prev) =>
+                  prev ? { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length } : prev
+                );
+              }}
+              style={{
+                position: 'absolute',
+                left: 12,
+                border: 'none',
+                background: 'rgba(255,255,255,0.15)',
+                color: '#fff',
+                fontSize: 22,
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                cursor: 'pointer',
+              }}
+            >
+              ‹
+            </button>
+          )}
+
+          <img
+            onClick={(e) => e.stopPropagation()}
+            src={lightbox.images[lightbox.index].thumbnailUrl.replace('&sz=w400', '&sz=w1600')}
+            alt={lightbox.images[lightbox.index].name}
+            style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 8 }}
+          />
+
+          {lightbox.images.length > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightbox((prev) => (prev ? { ...prev, index: (prev.index + 1) % prev.images.length } : prev));
+              }}
+              style={{
+                position: 'absolute',
+                right: 12,
+                border: 'none',
+                background: 'rgba(255,255,255,0.15)',
+                color: '#fff',
+                fontSize: 22,
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                cursor: 'pointer',
+              }}
+            >
+              ›
+            </button>
+          )}
+
+          {lightbox.images.length > 1 && (
+            <div style={{ position: 'absolute', bottom: 20, color: '#fff', fontSize: 12 }}>
+              {lightbox.index + 1} / {lightbox.images.length}
+            </div>
+          )}
         </div>
       )}
     </div>
