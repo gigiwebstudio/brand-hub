@@ -190,19 +190,18 @@ export default function BrandHub() {
                         🌐 {selected.website.replace("https://", "")}
                       </a>
                       {selected.phone && (
-                        <a href={`tel:${selected.phone}`}
-                          style={{ padding: "9px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", textDecoration: "none" }}>
-                          📞 {selected.phone}
-                        </a>
+                        <div onClick={() => { navigator.clipboard.writeText(selected.phone); setCopied("phone"); setTimeout(() => setCopied(""), 1500); }}
+                          style={{ padding: "9px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", cursor: "pointer", userSelect: "none" }}>
+                          📞 {copied === "phone" ? "✓ Copied!" : selected.phone}
+                        </div>
                       )}
                     </div>
                     {selected.address && (
-                      <a href={`https://maps.google.com/?q=${encodeURIComponent(selected.address)}`} target="_blank" rel="noopener noreferrer"
-                        style={{ padding: "10px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", textDecoration: "none", display: "flex", alignItems: "flex-start", gap: 8, lineHeight: 1.5 }}>
+                      <div onClick={() => { navigator.clipboard.writeText(selected.address); setCopied("address"); setTimeout(() => setCopied(""), 1500); }}
+                        style={{ padding: "10px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 8, lineHeight: 1.5, userSelect: "none" }}>
                         <span>📍</span>
-                        <span style={{ flex: 1 }}>{selected.address}</span>
-                        <span style={{ color: "#BBB", flexShrink: 0 }}>↗</span>
-                      </a>
+                        <span style={{ flex: 1 }}>{copied === "address" ? "✓ Copied!" : selected.address}</span>
+                      </div>
                     )}
                   </div>
                 </div>
