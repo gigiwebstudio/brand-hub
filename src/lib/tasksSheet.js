@@ -70,9 +70,20 @@ export async function appendTask(partialTask) {
 
   const auth = getAuth();
   const sheets = google.sheets({ version: 'v4', auth });
-  await sheets.spreadsheets.values.append({
+
+  // Explicitly compute the next row instead of using values.append's
+  // "auto-detect the table" behavior — a blank row in the middle of the
+  // sheet was confusing that auto-detection and causing new rows to land
+  // shifted one column to the right.
+  const colARes = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: RANGE,
+    range: `${TAB_NAME}!A2:A`,
+  });
+  const nextRow = 2 + (colARes.data.values || []).length;
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: `${TAB_NAME}!A${nextRow}:K${nextRow}`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [taskToRow(newTask)] },
   });
