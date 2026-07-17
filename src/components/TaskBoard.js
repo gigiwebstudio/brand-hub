@@ -42,7 +42,7 @@ export default function TaskBoard() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [identity, setIdentity] = useState(null); // 'Agora' | '코워커'
+  const [identity, setIdentity] = useState(null); // '슬기' | '상원' | '대니'
   const [newComment, setNewComment] = useState('');
   const [newLink, setNewLink] = useState('');
   const [draggedTaskId, setDraggedTaskId] = useState(null);
@@ -337,8 +337,8 @@ export default function TaskBoard() {
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: 10,
+            flexDirection: 'column',
+            gap: 8,
             padding: '10px 14px',
             background: '#faf7f0',
             borderRadius: 8,
@@ -347,18 +347,26 @@ export default function TaskBoard() {
           }}
         >
           <span style={{ color: '#666' }}>코멘트에 이름 표시하려면 선택해주세요:</span>
-          <button
-            onClick={() => chooseIdentity('Agora')}
-            style={{ padding: '5px 12px', borderRadius: 20, border: '1px solid #C8B89A', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-          >
-            저는 Agora예요
-          </button>
-          <button
-            onClick={() => chooseIdentity('코워커')}
-            style={{ padding: '5px 12px', borderRadius: 20, border: '1px solid #8FA8C8', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-          >
-            저는 코워커예요
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => chooseIdentity('슬기')}
+              style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid #C8B89A', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              저는 슬기예요
+            </button>
+            <button
+              onClick={() => chooseIdentity('상원')}
+              style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid #8FA8C8', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              저는 상원이에요
+            </button>
+            <button
+              onClick={() => chooseIdentity('대니')}
+              style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid #D8B26A', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              저는 대니예요
+            </button>
+          </div>
         </div>
       )}
 
