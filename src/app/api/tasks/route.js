@@ -39,7 +39,7 @@ export async function PATCH(request) {
 
     const existingRes = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${TAB_NAME}!A${rowIndex}:K${rowIndex}`,
+      range: `${TAB_NAME}!A${rowIndex}:L${rowIndex}`,
     });
     const existingRow = (existingRes.data.values || [[]])[0];
     const existingTask = rowToTask(existingRow, rowIndex);
@@ -59,7 +59,7 @@ export async function PATCH(request) {
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `${TAB_NAME}!A${rowIndex}:K${rowIndex}`,
+      range: `${TAB_NAME}!A${rowIndex}:L${rowIndex}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [taskToRow(mergedTask)] },
     });
