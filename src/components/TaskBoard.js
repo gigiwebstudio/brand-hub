@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import NewTaskModal from './NewTaskModal';
 import { clients } from '../app/clients';
-import { TEAM_MEMBERS } from '../lib/teamMembers';
+import { TEAM_MEMBERS, getTeamMemberColor } from '../lib/teamMembers';
 
 const OFFICIAL_CLIENT_NAMES = clients.filter((c) => c.active).map((c) => c.name);
 
@@ -295,8 +295,8 @@ export default function TaskBoard() {
                 display: 'inline-block',
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#8A6D3B',
-                background: '#F5EAD6',
+                color: '#fff',
+                background: getTeamMemberColor(task.assignedTo),
                 padding: '3px 9px',
                 borderRadius: 20,
               }}
@@ -417,7 +417,7 @@ export default function TaskBoard() {
               fontWeight: 600,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              background: assigneeFilter === name ? '#8FA8C8' : '#f0f0f0',
+              background: assigneeFilter === name ? (name === '전체' ? '#8FA8C8' : getTeamMemberColor(name)) : '#f0f0f0',
               color: assigneeFilter === name ? '#fff' : '#888',
             }}
           >
@@ -620,8 +620,9 @@ export default function TaskBoard() {
                     style={{
                       padding: '6px 12px',
                       borderRadius: 20,
-                      border: selectedTask.assignedTo === name ? '2px solid #8FA8C8' : '1px solid #ddd',
-                      background: selectedTask.assignedTo === name ? '#eaf1f8' : '#fff',
+                      border: selectedTask.assignedTo === name ? `2px solid ${getTeamMemberColor(name)}` : '1px solid #ddd',
+                      background: selectedTask.assignedTo === name ? getTeamMemberColor(name) : '#fff',
+                      color: selectedTask.assignedTo === name ? '#fff' : '#333',
                       fontSize: 11,
                       fontWeight: 600,
                       cursor: 'pointer',
