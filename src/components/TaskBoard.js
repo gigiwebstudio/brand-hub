@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import NewTaskModal from './NewTaskModal';
 import { clients } from '../app/clients';
+import { TEAM_MEMBERS } from '../lib/teamMembers';
 
 const OFFICIAL_CLIENT_NAMES = clients.filter((c) => c.active).map((c) => c.name);
 
@@ -39,6 +40,7 @@ export default function TaskBoard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('not_started');
   const [searchQuery, setSearchQuery] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState('전체');
   const [showNewTask, setShowNewTask] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -243,6 +245,7 @@ export default function TaskBoard() {
     tasks.filter((t) => {
       if (t.status !== statusKey) return false;
       if (!matchesSearch(t)) return false;
+      if (assigneeFilter !== '전체' && t.assignedTo !== assigneeFilter) return false;
       // Completed tasks older than a week are hidden from the board view
       // (still findable via search above) to keep that column from piling up.
       if (statusKey === 'completed' && !searchQuery.trim() && !isRecentlyCompleted(t)) return false;
@@ -272,19 +275,35 @@ export default function TaskBoard() {
           opacity: draggedTaskId === task.id ? 0.4 : 1,
         }}
       >
-        <div
-          style={{
-            display: 'inline-block',
-            fontSize: 11,
-            fontWeight: 700,
-            color: CLIENT_BADGE_TEXT_COLOR,
-            background: CLIENT_BADGE_COLOR,
-            padding: '3px 9px',
-            borderRadius: 20,
-            marginBottom: 8,
-          }}
-        >
-          {task.client}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+          <div
+            style={{
+              display: 'inline-block',
+              fontSize: 11,
+              fontWeight: 700,
+              color: CLIENT_BADGE_TEXT_COLOR,
+              background: CLIENT_BADGE_COLOR,
+              padding: '3px 9px',
+              borderRadius: 20,
+            }}
+          >
+            {task.client}
+          </div>
+          {task.assignedTo && (
+            <div
+              style={{
+                display: 'inline-block',
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#8A6D3B',
+                background: '#F5EAD6',
+                padding: '3px 9px',
+                borderRadius: 20,
+              }}
+            >
+              👤 {task.assignedTo}
+            </div>
+          )}
         </div>
         <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 6 }}>{task.taskTitle}</div>
         {task.taskDescription && (
@@ -380,10 +399,32 @@ export default function TaskBoard() {
           borderRadius: 8,
           border: '1px solid #ddd',
           fontSize: 13,
-          marginBottom: 16,
+          marginBottom: 10,
           boxSizing: 'border-box',
         }}
       />
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+        {['전체', ...TEAM_MEMBERS].map((name) => (
+          <button
+            key={name}
+            onClick={() => setAssigneeFilter(name)}
+            style={{
+              padding: '5px 12px',
+              borderRadius: 20,
+              border: 'none',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              background: assigneeFilter === name ? '#8FA8C8' : '#f0f0f0',
+              color: assigneeFilter === name ? '#fff' : '#888',
+            }}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
 
       {isMobile && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto' }}>
@@ -547,7 +588,7 @@ export default function TaskBoard() {
               생성: {formatDate(selectedTask.createdAt)} · 수정: {formatDate(selectedTask.updatedAt)}
             </div>
 
-            <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
               {STATUSES.map((s) => (
                 <button
                   key={s.key}
@@ -565,6 +606,31 @@ export default function TaskBoard() {
                   {s.label}
                 </button>
               ))}
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#999', marginBottom: 6 }}>👤 담당자</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {TEAM_MEMBERS.map((name) => (
+                  <button
+                    key={name}
+                    onClick={() =>
+                      patchTask(selectedTask, { assignedTo: selectedTask.assignedTo === name ? '' : name })
+                    }
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 20,
+                      border: selectedTask.assignedTo === name ? '2px solid #8FA8C8' : '1px solid #ddd',
+                      background: selectedTask.assignedTo === name ? '#eaf1f8' : '#fff',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div style={{ marginBottom: 14 }}>
