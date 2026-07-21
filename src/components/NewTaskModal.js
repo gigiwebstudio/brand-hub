@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import ClientSelect from './ClientSelect';
-import { TEAM_MEMBERS } from '../lib/teamMembers';
+import { TEAM_MEMBERS, getTeamMemberColor } from '../lib/teamMembers';
 
 export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobile }) {
   const [client, setClient] = useState('');
@@ -108,8 +108,9 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
               style={{
                 padding: '6px 14px',
                 borderRadius: 20,
-                border: assignedTo === name ? '2px solid #8FA8C8' : '1px solid #ddd',
-                background: assignedTo === name ? '#eaf1f8' : '#fff',
+                border: assignedTo === name ? `2px solid ${getTeamMemberColor(name)}` : '1px solid #ddd',
+                background: assignedTo === name ? getTeamMemberColor(name) : '#fff',
+                color: assignedTo === name ? '#fff' : '#333',
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
