@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import ClientSelect from './ClientSelect';
+import { TEAM_MEMBERS } from '../lib/teamMembers';
 
 export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobile }) {
   const [client, setClient] = useState('');
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [linksText, setLinksText] = useState('');
+  const [assignedTo, setAssignedTo] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -22,7 +24,7 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
       await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client, taskTitle, taskDescription, links }),
+        body: JSON.stringify({ client, taskTitle, taskDescription, links, assignedTo }),
       });
 
       onCreated();
@@ -63,7 +65,7 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
         onClick={(e) => e.stopPropagation()}
         style={{ background: '#fff', width: '100%', maxWidth: isMobile ? '100%' : 480, maxHeight: isMobile ? '90vh' : '85vh', overflowY: 'auto', borderRadius: isMobile ? '16px 16px 0 0' : 16, padding: 20 }}
       >
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>+ New Task</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>+ New Task</div>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>스크린샷</label>
         <button
@@ -95,6 +97,29 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
 
         <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>상세 설명</label>
         <textarea value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>담당자</label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4, marginBottom: 12 }}>
+          {TEAM_MEMBERS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setAssignedTo(assignedTo === name ? '' : name)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 20,
+                border: assignedTo === name ? '2px solid #8FA8C8' : '1px solid #ddd',
+                background: assignedTo === name ? '#eaf1f8' : '#fff',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>링크 (한 줄에 하나씩)</label>
         <textarea value={linksText} onChange={(e) => setLinksText(e.target.value)} rows={2} placeholder="https://..." style={{ ...inputStyle, resize: 'vertical' }} />
