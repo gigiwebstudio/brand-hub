@@ -6,27 +6,11 @@ import LogoSection from './LogoSection'
 import ExportTab from './ExportTab'
 
 
-// Dynamic system prompt generator from client data
+// Dynamic system prompt generator — reads entirely from clients.js
 function buildSystemPrompt(client) {
   const colorDesc = client.colors.map((hex, i) => `${client.colorNames[i]} (${hex})`).join(', ')
-  const avoidMap = {
-    wolha: 'cheap, party, fun, cute, trendy, K-pop vibes',
-    twohorns: 'cheap, casual, fast food vibes',
-    gamisushi: 'casual, cheap, fast food',
-    gakesushi: 'casual, cheap, fast food',
-  }
-  const locationMap = {
-    queenstherapy: 'Coquitlam, Vancouver',
-    joayotherapy: 'Brentwood, Burnaby',
-    joayopilates: 'Brentwood, Burnaby',
-    cocoricocafe: 'Robson Street, Vancouver',
-    gakesushi: 'Kitsilano, Vancouver',
-    uere: 'North Vancouver, BC',
-    gamisushi: 'Richmond, Vancouver',
-    uere: 'North Vancouver, BC',
-  }
-  const location = locationMap[client.id] || 'Vancouver, BC'
-  const avoid = avoidMap[client.id] ? `\nNEVER USE: ${avoidMap[client.id]}` : ''
+  const avoid = client.avoid ? `\nNEVER USE: ${client.avoid}` : ''
+  const location = client.address || 'Vancouver, BC'
   return `You are a social media content creator for ${client.name} (${client.nameKo}), a ${client.category} in ${location}.
 
 BRAND COLORS: ${colorDesc}
@@ -34,8 +18,9 @@ TONE: ${client.tone.join(', ')}
 KEY SERVICES: ${client.highlights.join(', ')}
 DESIGN SCHEDULE: ${client.schedule}${avoid}
 
-Always write in the brand voice. Use the exact HEX color codes when referencing colors. Keep content relevant to the Vancouver/BC market.`
+Always write in the brand voice. Use exact HEX color codes when referencing colors. Keep content relevant to the Vancouver/BC market.`
 }
+
 
 export default function BrandHub() {
   const [selected, setSelected] = useState(null);
@@ -195,6 +180,12 @@ export default function BrandHub() {
                         <div onClick={() => { navigator.clipboard.writeText(selected.phone); setCopied("phone"); setTimeout(() => setCopied(""), 1500); }}
                           style={{ padding: "9px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", cursor: "pointer", userSelect: "none" }}>
                           📞 {copied === "phone" ? "✓ Copied!" : selected.phone}
+                        </div>
+                      )}
+                      {selected.email && (
+                        <div onClick={() => { navigator.clipboard.writeText(selected.email); setCopied("email"); setTimeout(() => setCopied(""), 1500); }}
+                          style={{ padding: "9px 14px", background: "#F7F5F2", borderRadius: 8, fontSize: 12, color: "#444", cursor: "pointer", userSelect: "none" }}>
+                          ✉️ {copied === "email" ? "✓ Copied!" : selected.email}
                         </div>
                       )}
                     </div>
