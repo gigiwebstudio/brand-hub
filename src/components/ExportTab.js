@@ -23,6 +23,7 @@ function buildSystemPrompt(client) {
     twohorns: 'cheap, casual, fast food vibes',
     gamisushi: 'casual, cheap, fast food',
     gakesushi: 'casual, cheap, fast food',
+    uere: 'salesy, exclamation points, trendy, fun, cute, filters, warm orange/teal grading',
   }
   const avoid = avoidWords[client.id] ? `\nNEVER USE: ${avoidWords[client.id]}` : ''
   const location = {
@@ -32,6 +33,7 @@ function buildSystemPrompt(client) {
     cocoricocafe: 'Robson Street, Vancouver',
     gakesushi: 'Kitsilano, Vancouver',
     gamisushi: 'Richmond, Vancouver',
+    uere: 'North Vancouver, BC',
   }[client.id] || 'Vancouver, BC'
 
   return `You are a social media content creator for ${client.name} (${client.nameKo}), a ${client.category} in ${location}.
