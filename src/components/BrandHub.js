@@ -21,7 +21,9 @@ function buildSystemPrompt(client) {
     joayopilates: 'Brentwood, Burnaby',
     cocoricocafe: 'Robson Street, Vancouver',
     gakesushi: 'Kitsilano, Vancouver',
+    uere: 'North Vancouver, BC',
     gamisushi: 'Richmond, Vancouver',
+    uere: 'North Vancouver, BC',
   }
   const location = locationMap[client.id] || 'Vancouver, BC'
   const avoid = avoidMap[client.id] ? `\nNEVER USE: ${avoidMap[client.id]}` : ''
