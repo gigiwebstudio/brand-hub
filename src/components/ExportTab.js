@@ -15,27 +15,11 @@ const CANADA_HOLIDAYS = [
   { name: "Father's Day", date: "June 15", emoji: "👔", theme: "bold, warm, appreciation, earthy tones" },
 ]
 
-// ── Dynamic prompt generator from client data ──────────────────────────────
+// ── Dynamic prompt generator — reads entirely from clients.js ──────────────────
 function buildSystemPrompt(client) {
   const colorDesc = client.colors.map((hex, i) => `${client.colorNames[i]} (${hex})`).join(', ')
-  const avoidWords = {
-    wolha: 'cheap, party, fun, cute, trendy, K-pop vibes, 막걸리 출시, 가성비, 술 한잔',
-    twohorns: 'cheap, casual, fast food vibes',
-    gamisushi: 'casual, cheap, fast food',
-    gakesushi: 'casual, cheap, fast food',
-    uere: 'salesy, exclamation points, trendy, fun, cute, filters, warm orange/teal grading',
-  }
-  const avoid = avoidWords[client.id] ? `\nNEVER USE: ${avoidWords[client.id]}` : ''
-  const location = {
-    queenstherapy: 'Coquitlam, Vancouver',
-    joayotherapy: 'Brentwood, Burnaby',
-    joayopilates: 'Brentwood, Burnaby',
-    cocoricocafe: 'Robson Street, Vancouver',
-    gakesushi: 'Kitsilano, Vancouver',
-    gamisushi: 'Richmond, Vancouver',
-    uere: 'North Vancouver, BC',
-  }[client.id] || 'Vancouver, BC'
-
+  const avoid = client.avoid ? `\nNEVER USE: ${client.avoid}` : ''
+  const location = client.address || 'Vancouver, BC'
   return `You are a social media content creator for ${client.name} (${client.nameKo}), a ${client.category} in ${location}.
 
 BRAND COLORS: ${colorDesc}
@@ -43,7 +27,7 @@ TONE: ${client.tone.join(', ')}
 KEY SERVICES: ${client.highlights.join(', ')}
 DESIGN SCHEDULE: ${client.schedule}${avoid}
 
-Always write in the brand voice. Use the exact HEX color codes when referencing colors. Keep content relevant to the Vancouver/BC market.`
+Always write in the brand voice. Use exact HEX color codes when referencing colors. Keep content relevant to the Vancouver/BC market.`
 }
 
 function buildQuickPrompt(client, type) {
