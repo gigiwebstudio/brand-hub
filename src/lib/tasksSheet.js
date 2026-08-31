@@ -2,10 +2,10 @@ import { google } from 'googleapis';
 
 const SHEET_ID = process.env.BRAND_HUB_SHEET_ID;
 const TAB_NAME = 'Tasks';
-export const RANGE = `${TAB_NAME}!A2:L`;
+export const RANGE = `${TAB_NAME}!A2:M`;
 
 // Column order:
-// id | client | taskTitle | taskDescription | status | links | screenshotImageIds | designImageIds | comments | createdAt | updatedAt | assignedTo
+// id | client | taskTitle | taskDescription | status | links | screenshotImageIds | designImageIds | comments | createdAt | updatedAt | assignedTo | dueDate
 
 export function getAuth() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
@@ -32,6 +32,7 @@ export function rowToTask(row, rowIndex) {
     createdAt: row[9] || '',
     updatedAt: row[10] || '',
     assignedTo: row[11] || '',
+    dueDate: row[12] || '',
   };
 }
 
@@ -49,6 +50,7 @@ export function taskToRow(task) {
     task.createdAt,
     task.updatedAt,
     task.assignedTo || '',
+    task.dueDate || '',
   ];
 }
 
@@ -69,6 +71,7 @@ export async function appendTask(partialTask) {
     createdAt: now,
     updatedAt: now,
     assignedTo: partialTask.assignedTo || '',
+    dueDate: partialTask.dueDate || '',
   };
 
   const auth = getAuth();
@@ -86,7 +89,7 @@ export async function appendTask(partialTask) {
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_NAME}!A${nextRow}:L${nextRow}`,
+    range: `${TAB_NAME}!A${nextRow}:M${nextRow}`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [taskToRow(newTask)] },
   });
@@ -112,6 +115,6 @@ export async function clearTaskRow(rowIndex) {
   const sheets = google.sheets({ version: 'v4', auth });
   await sheets.spreadsheets.values.clear({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_NAME}!A${rowIndex}:L${rowIndex}`,
+    range: `${TAB_NAME}!A${rowIndex}:M${rowIndex}`,
   });
 }
