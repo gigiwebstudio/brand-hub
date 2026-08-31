@@ -191,6 +191,10 @@ export default function TaskBoard() {
   };
 
   const saveDates = async (task) => {
+    if (dueDateDraft && startDateDraft && dueDateDraft < startDateDraft) {
+      alert('마감일은 시작일 이후로 지정해주세요.');
+      return;
+    }
     const ok = await patchTask(task, { startDate: startDateDraft, dueDate: dueDateDraft });
     if (ok) setEditingDates(false);
   };
@@ -351,7 +355,7 @@ export default function TaskBoard() {
                 fontSize: 11,
                 fontWeight: 700,
                 color: overdue ? '#fff' : '#666',
-                background: overdue ? '#C97B63' : '#f0f0f0',
+                background: overdue ? '#db8585' : '#f0f0f0',
                 padding: '3px 9px',
                 borderRadius: 20,
               }}
@@ -656,7 +660,10 @@ export default function TaskBoard() {
                         type="date"
                         value={dueDateDraft}
                         min={startDateDraft}
-                        onChange={(e) => setDueDateDraft(e.target.value)}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setDueDateDraft(v && startDateDraft && v < startDateDraft ? startDateDraft : v);
+                        }}
                         style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}
                       />
                       <button onClick={() => removeDueDateOnly(selectedTask)} style={{ border: 'none', background: 'none', color: '#C97B63', fontSize: 16, cursor: 'pointer', padding: '0 2px' }}>
@@ -687,7 +694,7 @@ export default function TaskBoard() {
                     fontSize: 12,
                     fontWeight: 600,
                     color: isOverdue(selectedTask) ? '#fff' : '#666',
-                    background: isOverdue(selectedTask) ? '#C97B63' : '#f0f0f0',
+                    background: isOverdue(selectedTask) ? '#db8585' : '#f0f0f0',
                     padding: '4px 10px',
                     borderRadius: 20,
                     cursor: 'pointer',
