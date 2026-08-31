@@ -4,12 +4,18 @@ import { useState } from 'react';
 import ClientSelect from './ClientSelect';
 import { TEAM_MEMBERS, getTeamMemberColor } from '../lib/teamMembers';
 
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobile }) {
   const [client, setClient] = useState('');
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [linksText, setLinksText] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
+  const [startDate, setStartDate] = useState(todayStr()); // auto-filled with today, like a calendar event
   const [dueDate, setDueDate] = useState('');
   const [showDueDate, setShowDueDate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -26,7 +32,7 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
       await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client, taskTitle, taskDescription, links, assignedTo, dueDate }),
+        body: JSON.stringify({ client, taskTitle, taskDescription, links, assignedTo, startDate, dueDate }),
       });
 
       onCreated();
@@ -100,33 +106,45 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
         <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>상세 설명</label>
         <textarea value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
 
-        <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>마감일</label>
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>날짜</label>
         <div style={{ marginTop: 4, marginBottom: 12 }}>
-          {showDueDate ? (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                style={{ ...inputStyle, marginBottom: 0, marginTop: 0, flex: 1 }}
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setDueDate('');
-                  setShowDueDate(false);
-                }}
-                style={{ border: 'none', background: 'none', color: '#C97B63', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
-              >
-                ×
-              </button>
-            </div>
-          ) : (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14 }}
+            />
+            {showDueDate && (
+              <>
+                <span style={{ color: '#999', fontSize: 13 }}>→</span>
+                <input
+                  type="date"
+                  value={dueDate}
+                  min={startDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14 }}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDueDate('');
+                    setShowDueDate(false);
+                  }}
+                  style={{ border: 'none', background: 'none', color: '#C97B63', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
+                >
+                  ×
+                </button>
+              </>
+            )}
+          </div>
+          {!showDueDate && (
             <button
               type="button"
               onClick={() => setShowDueDate(true)}
               style={{
+                marginTop: 8,
                 padding: '6px 14px',
                 borderRadius: 20,
                 border: '1px dashed #ccc',
