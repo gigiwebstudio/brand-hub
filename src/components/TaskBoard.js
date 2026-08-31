@@ -46,6 +46,14 @@ function formatDueDate(dateStr) {
   }
 }
 
+function formatDateRange(task) {
+  if (!task.startDate && !task.dueDate) return '';
+  if (task.dueDate && task.dueDate !== task.startDate) {
+    return `${formatDueDate(task.startDate)} → ${formatDueDate(task.dueDate)}`;
+  }
+  return formatDueDate(task.startDate || task.dueDate);
+}
+
 function isOverdue(task) {
   if (!task.dueDate || task.status === 'completed') return false;
   const today = new Date();
@@ -71,7 +79,8 @@ export default function TaskBoard() {
   const [editingDesc, setEditingDesc] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [descDraft, setDescDraft] = useState('');
-  const [editingDueDate, setEditingDueDate] = useState(false);
+  const [editingDates, setEditingDates] = useState(false);
+  const [startDateDraft, setStartDateDraft] = useState('');
   const [dueDateDraft, setDueDateDraft] = useState('');
   const [driveImages, setDriveImages] = useState({ screenshots: [], designs: [] });
   const [loadingImages, setLoadingImages] = useState(false);
@@ -181,14 +190,13 @@ export default function TaskBoard() {
     if (ok) setEditingDesc(false);
   };
 
-  const saveDueDate = async (task) => {
-    const ok = await patchTask(task, { dueDate: dueDateDraft });
-    if (ok) setEditingDueDate(false);
+  const saveDates = async (task) => {
+    const ok = await patchTask(task, { startDate: startDateDraft, dueDate: dueDateDraft });
+    if (ok) setEditingDates(false);
   };
 
-  const removeDueDate = async (task) => {
-    await patchTask(task, { dueDate: '' });
-    setEditingDueDate(false);
+  const removeDueDateOnly = async (task) => {
+    setDueDateDraft('');
   };
 
   const deleteTask = async (task) => {
@@ -294,7 +302,7 @@ export default function TaskBoard() {
           setSelectedTask(task);
           setEditingTitle(false);
           setEditingDesc(false);
-          setEditingDueDate(false);
+          setEditingDates(false);
         }}
         style={{
           background: '#fff',
@@ -336,7 +344,7 @@ export default function TaskBoard() {
               👤 {task.assignedTo}
             </div>
           )}
-          {task.dueDate && (
+          {(task.startDate || task.dueDate) && (
             <div
               style={{
                 display: 'inline-block',
@@ -348,7 +356,7 @@ export default function TaskBoard() {
                 borderRadius: 20,
               }}
             >
-              📅 {formatDueDate(task.dueDate)}
+              📅 {formatDateRange(task)}
             </div>
           )}
         </div>
@@ -632,29 +640,47 @@ export default function TaskBoard() {
             )}
 
             <div style={{ marginBottom: 10 }}>
-              {editingDueDate ? (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {editingDates ? (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <input
                     type="date"
-                    value={dueDateDraft}
-                    onChange={(e) => setDueDateDraft(e.target.value)}
+                    value={startDateDraft}
+                    onChange={(e) => setStartDateDraft(e.target.value)}
                     style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}
                     autoFocus
                   />
-                  <button onClick={() => saveDueDate(selectedTask)} style={{ border: 'none', background: '#8FA8C8', color: '#fff', borderRadius: 6, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>
-                    저장
-                  </button>
-                  {selectedTask.dueDate && (
-                    <button onClick={() => removeDueDate(selectedTask)} style={{ border: 'none', background: 'none', color: '#C97B63', fontSize: 12, cursor: 'pointer' }}>
-                      마감일 삭제
+                  {dueDateDraft ? (
+                    <>
+                      <span style={{ color: '#999', fontSize: 13 }}>→</span>
+                      <input
+                        type="date"
+                        value={dueDateDraft}
+                        min={startDateDraft}
+                        onChange={(e) => setDueDateDraft(e.target.value)}
+                        style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}
+                      />
+                      <button onClick={() => removeDueDateOnly(selectedTask)} style={{ border: 'none', background: 'none', color: '#C97B63', fontSize: 16, cursor: 'pointer', padding: '0 2px' }}>
+                        ×
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setDueDateDraft(startDateDraft)}
+                      style={{ padding: '5px 12px', borderRadius: 20, border: '1px dashed #ccc', background: '#fff', color: '#888', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      + 마감일 추가
                     </button>
                   )}
+                  <button onClick={() => saveDates(selectedTask)} style={{ border: 'none', background: '#8FA8C8', color: '#fff', borderRadius: 6, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>
+                    저장
+                  </button>
                 </div>
-              ) : selectedTask.dueDate ? (
+              ) : selectedTask.startDate || selectedTask.dueDate ? (
                 <div
                   onClick={() => {
-                    setDueDateDraft(selectedTask.dueDate);
-                    setEditingDueDate(true);
+                    setStartDateDraft(selectedTask.startDate || '');
+                    setDueDateDraft(selectedTask.dueDate || '');
+                    setEditingDates(true);
                   }}
                   style={{
                     display: 'inline-block',
@@ -667,13 +693,14 @@ export default function TaskBoard() {
                     cursor: 'pointer',
                   }}
                 >
-                  📅 {formatDueDate(selectedTask.dueDate)} {isOverdue(selectedTask) ? '(지남)' : ''}
+                  📅 {formatDateRange(selectedTask)} {isOverdue(selectedTask) ? '(지남)' : ''}
                 </div>
               ) : (
                 <button
                   onClick={() => {
+                    setStartDateDraft(new Date().toISOString().slice(0, 10));
                     setDueDateDraft('');
-                    setEditingDueDate(true);
+                    setEditingDates(true);
                   }}
                   style={{
                     padding: '5px 12px',
@@ -686,7 +713,7 @@ export default function TaskBoard() {
                     cursor: 'pointer',
                   }}
                 >
-                  + 마감일 추가
+                  + 날짜 추가
                 </button>
               )}
             </div>
