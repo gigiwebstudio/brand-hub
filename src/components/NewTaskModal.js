@@ -25,6 +25,10 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
       alert('태스크 제목을 입력해주세요.');
       return;
     }
+    if (dueDate && startDate && dueDate < startDate) {
+      alert('마감일은 시작일 이후로 지정해주세요.');
+      return;
+    }
     setSubmitting(true);
     try {
       const links = linksText.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -122,7 +126,10 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
                   type="date"
                   value={dueDate}
                   min={startDate}
-                  onChange={(e) => setDueDate(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDueDate(v && startDate && v < startDate ? startDate : v);
+                  }}
                   style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14 }}
                   autoFocus
                 />
