@@ -2,10 +2,15 @@ import { google } from 'googleapis';
 
 const SHEET_ID = process.env.BRAND_HUB_SHEET_ID;
 const TAB_NAME = 'Tasks';
-export const RANGE = `${TAB_NAME}!A2:M`;
+export const RANGE = `${TAB_NAME}!A2:N`;
 
 // Column order:
-// id | client | taskTitle | taskDescription | status | links | screenshotImageIds | designImageIds | comments | createdAt | updatedAt | assignedTo | dueDate
+// id | client | taskTitle | taskDescription | status | links | screenshotImageIds | designImageIds | comments | createdAt | updatedAt | assignedTo | dueDate | startDate
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export function getAuth() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
@@ -33,6 +38,7 @@ export function rowToTask(row, rowIndex) {
     updatedAt: row[10] || '',
     assignedTo: row[11] || '',
     dueDate: row[12] || '',
+    startDate: row[13] || '',
   };
 }
 
@@ -51,6 +57,7 @@ export function taskToRow(task) {
     task.updatedAt,
     task.assignedTo || '',
     task.dueDate || '',
+    task.startDate || '',
   ];
 }
 
@@ -72,6 +79,7 @@ export async function appendTask(partialTask) {
     updatedAt: now,
     assignedTo: partialTask.assignedTo || '',
     dueDate: partialTask.dueDate || '',
+    startDate: partialTask.startDate || todayStr(),
   };
 
   const auth = getAuth();
@@ -89,7 +97,7 @@ export async function appendTask(partialTask) {
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_NAME}!A${nextRow}:M${nextRow}`,
+    range: `${TAB_NAME}!A${nextRow}:N${nextRow}`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [taskToRow(newTask)] },
   });
@@ -115,6 +123,6 @@ export async function clearTaskRow(rowIndex) {
   const sheets = google.sheets({ version: 'v4', auth });
   await sheets.spreadsheets.values.clear({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_NAME}!A${rowIndex}:M${rowIndex}`,
+    range: `${TAB_NAME}!A${rowIndex}:N${rowIndex}`,
   });
 }
