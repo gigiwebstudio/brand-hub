@@ -35,6 +35,24 @@ function formatDate(iso) {
   }
 }
 
+function formatDueDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    // dateStr is a plain YYYY-MM-DD from <input type="date">; parse as local, not UTC.
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+function isOverdue(task) {
+  if (!task.dueDate || task.status === 'completed') return false;
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  return task.dueDate < todayStr;
+}
+
 export default function TaskBoard() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +71,8 @@ export default function TaskBoard() {
   const [editingDesc, setEditingDesc] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [descDraft, setDescDraft] = useState('');
+  const [editingDueDate, setEditingDueDate] = useState(false);
+  const [dueDateDraft, setDueDateDraft] = useState('');
   const [driveImages, setDriveImages] = useState({ screenshots: [], designs: [] });
   const [loadingImages, setLoadingImages] = useState(false);
   const [lightbox, setLightbox] = useState(null); // { images: [...], index: 0 }
@@ -161,6 +181,16 @@ export default function TaskBoard() {
     if (ok) setEditingDesc(false);
   };
 
+  const saveDueDate = async (task) => {
+    const ok = await patchTask(task, { dueDate: dueDateDraft });
+    if (ok) setEditingDueDate(false);
+  };
+
+  const removeDueDate = async (task) => {
+    await patchTask(task, { dueDate: '' });
+    setEditingDueDate(false);
+  };
+
   const deleteTask = async (task) => {
     if (!confirm(`"${task.taskTitle}" 태스크를 삭제할까요? 되돌릴 수 없어요.`)) return;
     try {
@@ -253,6 +283,7 @@ export default function TaskBoard() {
     });
 
   const renderCard = (task) => {
+    const overdue = isOverdue(task);
     return (
       <div
         key={task.id}
@@ -263,6 +294,7 @@ export default function TaskBoard() {
           setSelectedTask(task);
           setEditingTitle(false);
           setEditingDesc(false);
+          setEditingDueDate(false);
         }}
         style={{
           background: '#fff',
@@ -271,11 +303,11 @@ export default function TaskBoard() {
           marginBottom: 10,
           boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
           cursor: 'pointer',
-          border: '1px solid #eee',
+          border: overdue ? '1px solid #E8B4A8' : '1px solid #eee',
           opacity: draggedTaskId === task.id ? 0.4 : 1,
         }}
       >
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
           <div
             style={{
               display: 'inline-block',
@@ -304,29 +336,44 @@ export default function TaskBoard() {
               👤 {task.assignedTo}
             </div>
           )}
+          {task.dueDate && (
+            <div
+              style={{
+                display: 'inline-block',
+                fontSize: 11,
+                fontWeight: 700,
+                color: overdue ? '#fff' : '#666',
+                background: overdue ? '#C97B63' : '#f0f0f0',
+                padding: '3px 9px',
+                borderRadius: 20,
+              }}
+            >
+              📅 {formatDueDate(task.dueDate)}
+            </div>
+          )}
         </div>
         <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 6 }}>{task.taskTitle}</div>
         {task.taskDescription && (
           <div
             style={{
               fontSize: 12,
-            color: '#777',
-            marginBottom: 8,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          {task.taskDescription}
-        </div>
-      )}
-      {task.links.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, color: '#888' }}>🔗 {task.links.length}</span>
-        </div>
-      )}
-    </div>
+              color: '#777',
+              marginBottom: 8,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {task.taskDescription}
+          </div>
+        )}
+        {task.links.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, color: '#888' }}>🔗 {task.links.length}</span>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -583,6 +630,66 @@ export default function TaskBoard() {
                 {selectedTask.taskDescription || <span style={{ color: '#bbb' }}>상세 설명 추가...</span>} <span style={{ fontSize: 11, color: '#bbb' }}>✏️</span>
               </div>
             )}
+
+            <div style={{ marginBottom: 10 }}>
+              {editingDueDate ? (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="date"
+                    value={dueDateDraft}
+                    onChange={(e) => setDueDateDraft(e.target.value)}
+                    style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}
+                    autoFocus
+                  />
+                  <button onClick={() => saveDueDate(selectedTask)} style={{ border: 'none', background: '#8FA8C8', color: '#fff', borderRadius: 6, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>
+                    저장
+                  </button>
+                  {selectedTask.dueDate && (
+                    <button onClick={() => removeDueDate(selectedTask)} style={{ border: 'none', background: 'none', color: '#C97B63', fontSize: 12, cursor: 'pointer' }}>
+                      마감일 삭제
+                    </button>
+                  )}
+                </div>
+              ) : selectedTask.dueDate ? (
+                <div
+                  onClick={() => {
+                    setDueDateDraft(selectedTask.dueDate);
+                    setEditingDueDate(true);
+                  }}
+                  style={{
+                    display: 'inline-block',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: isOverdue(selectedTask) ? '#fff' : '#666',
+                    background: isOverdue(selectedTask) ? '#C97B63' : '#f0f0f0',
+                    padding: '4px 10px',
+                    borderRadius: 20,
+                    cursor: 'pointer',
+                  }}
+                >
+                  📅 {formatDueDate(selectedTask.dueDate)} {isOverdue(selectedTask) ? '(지남)' : ''}
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setDueDateDraft('');
+                    setEditingDueDate(true);
+                  }}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: 20,
+                    border: '1px dashed #ccc',
+                    background: '#fff',
+                    color: '#888',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + 마감일 추가
+                </button>
+              )}
+            </div>
 
             <div style={{ fontSize: 11, color: '#aaa', marginBottom: 14 }}>
               생성: {formatDate(selectedTask.createdAt)} · 수정: {formatDate(selectedTask.updatedAt)}
