@@ -10,6 +10,8 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
   const [taskDescription, setTaskDescription] = useState('');
   const [linksText, setLinksText] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [showDueDate, setShowDueDate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -24,7 +26,7 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
       await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client, taskTitle, taskDescription, links, assignedTo }),
+        body: JSON.stringify({ client, taskTitle, taskDescription, links, assignedTo, dueDate }),
       });
 
       onCreated();
@@ -97,6 +99,48 @@ export default function NewTaskModal({ onClose, onCreated, clientOptions, isMobi
 
         <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>상세 설명</label>
         <textarea value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>마감일</label>
+        <div style={{ marginTop: 4, marginBottom: 12 }}>
+          {showDueDate ? (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                style={{ ...inputStyle, marginBottom: 0, marginTop: 0, flex: 1 }}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setDueDate('');
+                  setShowDueDate(false);
+                }}
+                style={{ border: 'none', background: 'none', color: '#C97B63', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowDueDate(true)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 20,
+                border: '1px dashed #ccc',
+                background: '#fff',
+                color: '#888',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              + 마감일 추가
+            </button>
+          )}
+        </div>
 
         <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>담당자</label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4, marginBottom: 12 }}>
