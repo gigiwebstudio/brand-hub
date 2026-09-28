@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/create-weekly-tasks",
       "schedule": "0 13 * * 1"
+    },
+    {
+      "path": "/api/cron/holiday-reminders",
+      "schedule": "0 13 * * *"
     }
   ]
 }

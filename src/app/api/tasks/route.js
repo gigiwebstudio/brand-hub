@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
 import { getAuth, rowToTask, taskToRow, appendTask, getAllTasks, clearTaskRow } from '../../../lib/tasksSheet';
+import { notifyTeamMember } from '../../../lib/telegram';
 
 const SHEET_ID = process.env.BRAND_HUB_SHEET_ID;
 const TAB_NAME = 'Tasks';
@@ -39,7 +40,7 @@ export async function PATCH(request) {
 
     const existingRes = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${TAB_NAME}!A${rowIndex}:N${rowIndex}`,
+      range: `${TAB_NAME}!A${rowIndex}:O${rowIndex}`,
     });
     const existingRow = (existingRes.data.values || [[]])[0];
     const existingTask = rowToTask(existingRow, rowIndex);
@@ -59,10 +60,26 @@ export async function PATCH(request) {
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `${TAB_NAME}!A${rowIndex}:N${rowIndex}`,
+      range: `${TAB_NAME}!A${rowIndex}:O${rowIndex}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [taskToRow(mergedTask)] },
     });
+
+    // Status-change notifications. Kept to the two transitions that need
+    // someone's attention: work is ready to check, or it got sent back.
+    if (updates.status && updates.status !== existingTask.status) {
+      if (updates.status === 'needs_review' && mergedTask.assignedTo !== '슬기') {
+        await notifyTeamMember(
+          '슬기',
+          `👀 리뷰 요청\n\n[${mergedTask.client}] ${mergedTask.taskTitle}\n담당: ${mergedTask.assignedTo || '미지정'}`
+        );
+      } else if (updates.status === 'needs_changes' && mergedTask.assignedTo) {
+        await notifyTeamMember(
+          mergedTask.assignedTo,
+          `✏️ 수정 요청\n\n[${mergedTask.client}] ${mergedTask.taskTitle}`
+        );
+      }
+    }
 
     return NextResponse.json({ task: mergedTask });
   } catch (err) {

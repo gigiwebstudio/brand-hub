@@ -1,11 +1,12 @@
 import { google } from 'googleapis';
+import { notifyTeamMember } from './telegram';
 
 const SHEET_ID = process.env.BRAND_HUB_SHEET_ID;
 const TAB_NAME = 'Tasks';
-export const RANGE = `${TAB_NAME}!A2:N`;
+export const RANGE = `${TAB_NAME}!A2:O`;
 
 // Column order:
-// id | client | taskTitle | taskDescription | status | links | screenshotImageIds | designImageIds | comments | createdAt | updatedAt | assignedTo | dueDate | startDate
+// id | client | taskTitle | taskDescription | status | links | screenshotImageIds | designImageIds | comments | createdAt | updatedAt | assignedTo | dueDate | startDate | sortOrder
 
 function todayStr() {
   const d = new Date();
@@ -39,6 +40,10 @@ export function rowToTask(row, rowIndex) {
     assignedTo: row[11] || '',
     dueDate: row[12] || '',
     startDate: row[13] || '',
+    // Controls up/down card ordering within a status column (Completed excluded).
+    // Legacy rows created before this column existed read as 0, so they sort
+    // before newer tasks (which get a large Date.now() value) — that's fine.
+    sortOrder: Number(row[14]) || 0,
   };
 }
 
@@ -58,6 +63,7 @@ export function taskToRow(task) {
     task.assignedTo || '',
     task.dueDate || '',
     task.startDate || '',
+    task.sortOrder != null ? task.sortOrder : Date.now(),
   ];
 }
 
@@ -80,6 +86,8 @@ export async function appendTask(partialTask) {
     assignedTo: partialTask.assignedTo || '',
     dueDate: partialTask.dueDate || '',
     startDate: partialTask.startDate || todayStr(),
+    // New tasks go to the bottom of their column by default.
+    sortOrder: Date.now(),
   };
 
   const auth = getAuth();
@@ -97,10 +105,23 @@ export async function appendTask(partialTask) {
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_NAME}!A${nextRow}:N${nextRow}`,
+    range: `${TAB_NAME}!A${nextRow}:O${nextRow}`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [taskToRow(newTask)] },
   });
+
+  // Fires for every creation path (manual "New Task" modal, weekly recurring
+  // cron, holiday reminder cron) since they all funnel through appendTask.
+  if (newTask.assignedTo) {
+    // Awaited (not fire-and-forget) since Vercel serverless functions can be
+    // frozen/torn down right after the response is sent, which would drop
+    // an un-awaited notification.
+    await notifyTeamMember(
+      newTask.assignedTo,
+      `🆕 새 태스크가 배정됐어요\n\n[${newTask.client}] ${newTask.taskTitle}` +
+        (newTask.dueDate ? `\n📅 마감: ${newTask.dueDate}` : '')
+    );
+  }
 
   return newTask;
 }
@@ -123,6 +144,6 @@ export async function clearTaskRow(rowIndex) {
   const sheets = google.sheets({ version: 'v4', auth });
   await sheets.spreadsheets.values.clear({
     spreadsheetId: SHEET_ID,
-    range: `${TAB_NAME}!A${rowIndex}:N${rowIndex}`,
+    range: `${TAB_NAME}!A${rowIndex}:O${rowIndex}`,
   });
 }

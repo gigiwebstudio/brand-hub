@@ -15,3 +15,19 @@ export const TEAM_MEMBER_COLORS = {
 export function getTeamMemberColor(name) {
   return TEAM_MEMBER_COLORS[name] || '#B0B0B0';
 }
+
+// Telegram chat_id per person, for the Telegram notification feature
+// (see src/lib/telegram.js). To fill these in:
+//   1. Create a bot via @BotFather on Telegram, set TELEGRAM_BOT_TOKEN
+//      in Vercel env vars to the token it gives you.
+//   2. Have each person send any message to that bot once.
+//   3. Visit https://api.telegram.org/bot<TOKEN>/getUpdates in a browser —
+//      each person's chat_id shows up in the JSON response.
+// Leave a value as '' until that person is set up; notifications to them
+// are simply skipped until then (no error, no crash).
+export const TEAM_MEMBER_TELEGRAM_IDS = {
+  슬기: '',
+  경민: '',
+  상원: '',
+  대표님: '',
+};

@@ -284,24 +284,88 @@ export default function TaskBoard() {
   };
 
   const columnTasks = (statusKey) =>
-    tasks.filter((t) => {
-      if (t.status !== statusKey) return false;
-      if (!matchesSearch(t)) return false;
-      if (assigneeFilter !== '전체' && t.assignedTo !== assigneeFilter) return false;
-      // Completed tasks older than a week are hidden from the board view
-      // (still findable via search above) to keep that column from piling up.
-      if (statusKey === 'completed' && !searchQuery.trim() && !isRecentlyCompleted(t)) return false;
-      return true;
+    tasks
+      .filter((t) => {
+        if (t.status !== statusKey) return false;
+        if (!matchesSearch(t)) return false;
+        if (assigneeFilter !== '전체' && t.assignedTo !== assigneeFilter) return false;
+        // Completed tasks older than a week are hidden from the board view
+        // (still findable via search above) to keep that column from piling up.
+        if (statusKey === 'completed' && !searchQuery.trim() && !isRecentlyCompleted(t)) return false;
+        return true;
+      })
+      // Manual card order within a column. Legacy rows without a sortOrder
+      // (value 0) fall back to their sheet row order relative to each other.
+      .sort((a, b) => (a.sortOrder || a.rowIndex) - (b.sortOrder || b.rowIndex));
+
+  const patchSortOrder = (rowIndex, sortOrder) =>
+    fetch('/api/tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rowIndex, sortOrder }),
     });
 
-  const renderCard = (task) => {
+  // Swaps sortOrder between two tasks in the same column (used by both the
+  // up/down arrows and in-column drag reordering). Completed is excluded
+  // from reordering entirely — callers check task.status before calling this.
+  const swapSortOrder = async (taskA, taskB) => {
+    const orderA = taskA.sortOrder;
+    const orderB = taskB.sortOrder;
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === taskA.id) return { ...t, sortOrder: orderB };
+        if (t.id === taskB.id) return { ...t, sortOrder: orderA };
+        return t;
+      })
+    );
+    try {
+      await Promise.all([patchSortOrder(taskA.rowIndex, orderB), patchSortOrder(taskB.rowIndex, orderA)]);
+      fetchTasks();
+    } catch (err) {
+      console.error('Failed to reorder tasks:', err);
+      fetchTasks();
+    }
+  };
+
+  const moveTask = (task, direction) => {
+    if (task.status === 'completed') return;
+    const list = columnTasks(task.status);
+    const idx = list.findIndex((t) => t.id === task.id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (idx === -1 || swapIdx < 0 || swapIdx >= list.length) return;
+    swapSortOrder(task, list[swapIdx]);
+  };
+
+  const renderCard = (task, index, list) => {
     const overdue = isOverdue(task);
+    const reorderable = task.status !== 'completed';
     return (
       <div
         key={task.id}
         draggable={!isMobile}
-        onDragStart={() => setDraggedTaskId(task.id)}
+        onDragStart={(e) => {
+          e.stopPropagation();
+          setDraggedTaskId(task.id);
+        }}
         onDragEnd={() => setDraggedTaskId(null)}
+        onDragOver={(e) => {
+          if (!reorderable) return;
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const draggedTask = tasks.find((t) => t.id === draggedTaskId);
+          setDraggedTaskId(null);
+          if (!draggedTask || draggedTask.id === task.id) return;
+          if (draggedTask.status !== task.status) {
+            updateStatus(draggedTask, task.status);
+            return;
+          }
+          if (!reorderable) return;
+          swapSortOrder(draggedTask, task);
+        }}
         onClick={() => {
           setSelectedTask(task);
           setEditingTitle(false);
@@ -309,6 +373,9 @@ export default function TaskBoard() {
           setEditingDates(false);
         }}
         style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'stretch',
           background: '#fff',
           borderRadius: 12,
           padding: 14,
@@ -319,70 +386,116 @@ export default function TaskBoard() {
           opacity: draggedTaskId === task.id ? 0.4 : 1,
         }}
       >
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-          <div
-            style={{
-              display: 'inline-block',
-              fontSize: 11,
-              fontWeight: 700,
-              color: CLIENT_BADGE_TEXT_COLOR,
-              background: CLIENT_BADGE_COLOR,
-              padding: '3px 9px',
-              borderRadius: 20,
-            }}
-          >
-            {task.client}
-          </div>
-          {task.assignedTo && (
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
             <div
               style={{
                 display: 'inline-block',
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#fff',
-                background: getTeamMemberColor(task.assignedTo),
+                color: CLIENT_BADGE_TEXT_COLOR,
+                background: CLIENT_BADGE_COLOR,
                 padding: '3px 9px',
                 borderRadius: 20,
               }}
             >
-              👤 {task.assignedTo}
+              {task.client}
+            </div>
+            {task.assignedTo && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#fff',
+                  background: getTeamMemberColor(task.assignedTo),
+                  padding: '3px 9px',
+                  borderRadius: 20,
+                }}
+              >
+                👤 {task.assignedTo}
+              </div>
+            )}
+            {(task.startDate || task.dueDate) && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: overdue ? '#fff' : '#666',
+                  background: overdue ? '#db8585' : '#f0f0f0',
+                  padding: '3px 9px',
+                  borderRadius: 20,
+                }}
+              >
+                📅 {formatDateRange(task)}
+              </div>
+            )}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 6 }}>{task.taskTitle}</div>
+          {task.taskDescription && (
+            <div
+              style={{
+                fontSize: 12,
+                color: '#777',
+                marginBottom: 8,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {task.taskDescription}
             </div>
           )}
-          {(task.startDate || task.dueDate) && (
-            <div
-              style={{
-                display: 'inline-block',
-                fontSize: 11,
-                fontWeight: 700,
-                color: overdue ? '#fff' : '#666',
-                background: overdue ? '#db8585' : '#f0f0f0',
-                padding: '3px 9px',
-                borderRadius: 20,
-              }}
-            >
-              📅 {formatDateRange(task)}
+          {task.links.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: '#888' }}>🔗 {task.links.length}</span>
             </div>
           )}
         </div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 6 }}>{task.taskTitle}</div>
-        {task.taskDescription && (
-          <div
-            style={{
-              fontSize: 12,
-              color: '#777',
-              marginBottom: 8,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {task.taskDescription}
-          </div>
-        )}
-        {task.links.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, color: '#888' }}>🔗 {task.links.length}</span>
+        {reorderable && (
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                moveTask(task, 'up');
+              }}
+              disabled={index === 0}
+              style={{
+                border: 'none',
+                background: '#f5f5f5',
+                borderRadius: 6,
+                width: 22,
+                height: 22,
+                fontSize: 11,
+                lineHeight: '22px',
+                cursor: index === 0 ? 'default' : 'pointer',
+                color: index === 0 ? '#ddd' : '#888',
+              }}
+            >
+              ▲
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                moveTask(task, 'down');
+              }}
+              disabled={index === list.length - 1}
+              style={{
+                border: 'none',
+                background: '#f5f5f5',
+                borderRadius: 6,
+                width: 22,
+                height: 22,
+                fontSize: 11,
+                lineHeight: '22px',
+                cursor: index === list.length - 1 ? 'default' : 'pointer',
+                color: index === list.length - 1 ? '#ddd' : '#888',
+              }}
+            >
+              ▼
+            </button>
           </div>
         )}
       </div>
