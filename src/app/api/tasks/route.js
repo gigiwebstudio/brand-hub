@@ -65,20 +65,29 @@ export async function PATCH(request) {
       requestBody: { values: [taskToRow(mergedTask)] },
     });
 
-    // Status-change notifications. Kept to the two transitions that need
-    // someone's attention: work is ready to check, or it got sent back.
-    if (updates.status && updates.status !== existingTask.status) {
-      if (updates.status === 'needs_review' && mergedTask.assignedTo !== '슬기') {
-        await notifyTeamMember(
-          '슬기',
-          `👀 리뷰 요청\n\n[${mergedTask.client}] ${mergedTask.taskTitle}\n담당: ${mergedTask.assignedTo || '미지정'}`
-        );
-      } else if (updates.status === 'needs_changes' && mergedTask.assignedTo) {
-        await notifyTeamMember(
-          mergedTask.assignedTo,
-          `✏️ 수정 요청\n\n[${mergedTask.client}] ${mergedTask.taskTitle}`
-        );
-      }
+    // Status-change notification: only "needs_changes" pings anyone (the
+    // assignee needs to know work got sent back). "needs_review" is
+    // intentionally silent for now.
+    if (updates.status && updates.status !== existingTask.status && updates.status === 'needs_changes' && mergedTask.assignedTo) {
+      await notifyTeamMember(
+        mergedTask.assignedTo,
+        `✏️ 수정 요청\n\n[${mergedTask.client}] ${mergedTask.taskTitle}`
+      );
+    }
+
+    // Reassignment notification: if assignedTo changed, the NEW assignee
+    // gets pinged (not the old one). This also covers the case where a task
+    // is created for one person and handed off to someone else later.
+    if (
+      updates.assignedTo !== undefined &&
+      updates.assignedTo &&
+      updates.assignedTo !== existingTask.assignedTo
+    ) {
+      await notifyTeamMember(
+        updates.assignedTo,
+        `🔄 태스크가 배정됐어요\n\n[${mergedTask.client}] ${mergedTask.taskTitle}` +
+          (mergedTask.dueDate ? `\n📅 마감: ${mergedTask.dueDate}` : '')
+      );
     }
 
     return NextResponse.json({ task: mergedTask });
