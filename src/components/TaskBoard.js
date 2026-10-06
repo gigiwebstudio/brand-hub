@@ -70,7 +70,7 @@ export default function TaskBoard() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [identity, setIdentity] = useState(null); // '슬기' | '상원' | '대니'
+  const [identity, setIdentity] = useState(null); // '슬기' | '경민' | '상원' | '정진' | '대니'(=대표님)
   const [newComment, setNewComment] = useState('');
   const [newLink, setNewLink] = useState('');
   const [draggedTaskId, setDraggedTaskId] = useState(null);
@@ -578,6 +578,12 @@ export default function TaskBoard() {
               style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid #C8B89A', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               저는 슬기예요
+            </button>
+            <button
+              onClick={() => chooseIdentity('경민')}
+              style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid #C97B63', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              저는 경민이에요
             </button>
             <button
               onClick={() => chooseIdentity('상원')}
