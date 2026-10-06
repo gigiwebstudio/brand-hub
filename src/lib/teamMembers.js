@@ -7,7 +7,7 @@ export const TEAM_MEMBERS = ['슬기', '경민', '상원', '정진', '대표님'
 // neutral grey for anyone not listed.
 export const TEAM_MEMBER_COLORS = {
   슬기: '#8FA8C8',
-  경민: '#C97B63',
+  경민: '#E3A994',
   상원: '#B7C9A8',
   정진: '#A88BB8',
   대표님: '#D8B26A',
