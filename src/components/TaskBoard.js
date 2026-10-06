@@ -586,6 +586,12 @@ export default function TaskBoard() {
               저는 상원이에요
             </button>
             <button
+              onClick={() => chooseIdentity('정진')}
+              style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid #A88BB8', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              저는 정진이에요
+            </button>
+            <button
               onClick={() => chooseIdentity('대니')}
               style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid #D8B26A', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >

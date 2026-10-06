@@ -1,6 +1,6 @@
 // Who a task can be assigned to. Edit this list when the team changes —
 // no other code needs to change.
-export const TEAM_MEMBERS = ['슬기', '경민', '상원', '대표님'];
+export const TEAM_MEMBERS = ['슬기', '경민', '상원', '정진', '대표님'];
 
 // A color per person, used for badges/chips throughout the board. Add a new
 // name here too when adding someone to TEAM_MEMBERS above. Falls back to a
@@ -9,6 +9,7 @@ export const TEAM_MEMBER_COLORS = {
   슬기: '#8FA8C8',
   경민: '#C97B63',
   상원: '#B7C9A8',
+  정진: '#A88BB8',
   대표님: '#D8B26A',
 };
 
@@ -29,5 +30,6 @@ export const TEAM_MEMBER_TELEGRAM_IDS = {
   슬기: '',
   경민: '',
   상원: '',
+  정진: '',
   대표님: '',
 };
