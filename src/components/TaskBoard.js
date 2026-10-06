@@ -14,7 +14,7 @@ const STATUSES = [
   { key: 'not_started', label: 'Not Started', color: '#C8B89A' },
   { key: 'in_progress', label: 'In Progress', color: '#8FA8C8' },
   { key: 'needs_review', label: 'Needs Review', color: '#D8B26A' },
-  { key: 'needs_changes', label: 'Needs Changes', color: '#E3A994' },
+  { key: 'needs_changes', label: 'Needs Changes', color: '#C97B63' },
   { key: 'completed', label: 'Completed', color: '#B7C9A8' },
 ];
 
@@ -747,7 +747,7 @@ export default function TaskBoard() {
               <div style={{ fontSize: 12, color: '#999' }}>{selectedTask.client}</div>
               <button
                 onClick={() => deleteTask(selectedTask)}
-                style={{ border: 'none', background: 'none', color: '#E3A994', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                style={{ border: 'none', background: 'none', color: '#C97B63', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
               >
                 🗑 삭제
               </button>
@@ -825,7 +825,7 @@ export default function TaskBoard() {
                         }}
                         style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}
                       />
-                      <button onClick={() => removeDueDateOnly(selectedTask)} style={{ border: 'none', background: 'none', color: '#E3A994', fontSize: 16, cursor: 'pointer', padding: '0 2px' }}>
+                      <button onClick={() => removeDueDateOnly(selectedTask)} style={{ border: 'none', background: 'none', color: '#C97B63', fontSize: 16, cursor: 'pointer', padding: '0 2px' }}>
                         ×
                       </button>
                     </>
@@ -1004,7 +1004,7 @@ export default function TaskBoard() {
                     <a href={link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#3768AB', wordBreak: 'break-all', flex: 1 }}>
                       {link}
                     </a>
-                    <button onClick={() => removeLink(selectedTask, link)} style={{ border: 'none', background: 'none', color: '#E3A994', cursor: 'pointer', fontSize: 12 }}>
+                    <button onClick={() => removeLink(selectedTask, link)} style={{ border: 'none', background: 'none', color: '#C97B63', cursor: 'pointer', fontSize: 12 }}>
                       ×
                     </button>
                   </div>
