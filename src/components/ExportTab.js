@@ -3,16 +3,17 @@ import { useState } from 'react'
 
 const CANADA_HOLIDAYS = [
   { name: "Canada Day", date: "July 1", emoji: "🍁", theme: "red and white, patriotic, celebratory" },
-  { name: "BC Day", date: "August 4", emoji: "🏔️", theme: "nature, BC pride, summer" },
-  { name: "Labour Day", date: "September 1", emoji: "💪", theme: "end of summer, hardworking, community" },
-  { name: "Thanksgiving", date: "October 13", emoji: "🍂", theme: "warm autumn tones, gratitude, family" },
+  { name: "BC Day", date: "August 3", emoji: "🏔️", theme: "nature, BC pride, summer" },
+  { name: "Labour Day", date: "September 7", emoji: "💪", theme: "end of summer, hardworking, community" },
+  { name: "National Day for Truth and Reconciliation", date: "September 30", emoji: "🧡", theme: "respectful, orange shirt, reflection, no sales or promotional tone" },
+  { name: "Thanksgiving", date: "October 12", emoji: "🍂", theme: "warm autumn tones, gratitude, family" },
   { name: "Halloween", date: "October 31", emoji: "🎃", theme: "dark, spooky, fun, orange and black" },
   { name: "Remembrance Day", date: "November 11", emoji: "🌹", theme: "respectful, red poppy, solemn" },
   { name: "Christmas", date: "December 25", emoji: "🎄", theme: "warm, festive, red and green, cozy" },
   { name: "New Year", date: "January 1", emoji: "🎆", theme: "gold, celebration, fresh start, sparkle" },
   { name: "Valentine's Day", date: "February 14", emoji: "💝", theme: "romantic, pink and red, love, warmth" },
-  { name: "Mother's Day", date: "May 11", emoji: "🌸", theme: "soft florals, warmth, appreciation, pink" },
-  { name: "Father's Day", date: "June 15", emoji: "👔", theme: "bold, warm, appreciation, earthy tones" },
+  { name: "Mother's Day", date: "May 9", emoji: "🌸", theme: "soft florals, warmth, appreciation, pink" },
+  { name: "Father's Day", date: "June 20", emoji: "👔", theme: "bold, warm, appreciation, earthy tones" },
 ]
 
 // ── Dynamic prompt generator — reads entirely from clients.js ──────────────────

@@ -6,14 +6,20 @@ const CANADA_HOLIDAYS = [
   { date: '2026-07-01', name: 'Canada Day', emoji: '🍁' },
   { date: '2026-08-03', name: 'BC Day', emoji: '🏔️' },
   { date: '2026-09-07', name: 'Labour Day', emoji: '💪' },
+  { date: '2026-09-30', name: 'National Day for Truth & Reconciliation', emoji: '🧡' },
   { date: '2026-10-12', name: 'Thanksgiving', emoji: '🍂' },
   { date: '2026-10-31', name: 'Halloween', emoji: '🎃' },
   { date: '2026-11-11', name: 'Remembrance Day', emoji: '🌹' },
   { date: '2026-12-25', name: 'Christmas', emoji: '🎄' },
   { date: '2027-01-01', name: "New Year's Day", emoji: '🎆' },
   { date: '2027-02-14', name: "Valentine's Day", emoji: '💝' },
-  { date: '2027-05-10', name: "Mother's Day", emoji: '🌸' },
+  { date: '2027-05-09', name: "Mother's Day", emoji: '🌸' },
   { date: '2027-06-20', name: "Father's Day", emoji: '👔' },
+  { date: '2027-07-01', name: 'Canada Day', emoji: '🍁' },
+  { date: '2027-08-02', name: 'BC Day', emoji: '🏔️' },
+  { date: '2027-09-06', name: 'Labour Day', emoji: '💪' },
+  { date: '2027-09-30', name: 'National Day for Truth & Reconciliation', emoji: '🧡' },
+  { date: '2027-10-11', name: 'Thanksgiving', emoji: '🍂' },
 ]
 
 const POST_TYPES = [

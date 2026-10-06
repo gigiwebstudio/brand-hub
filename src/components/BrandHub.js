@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import { clients, categories, categoryMap } from '../app/clients'
+import { useState, useEffect } from 'react'
+import { clients as baseClients, categories, categoryMap } from '../app/clients'
 import DriveGallery from './DriveGallery'
 import LogoSection from './LogoSection'
 import ExportTab from './ExportTab'
@@ -28,6 +28,37 @@ export default function BrandHub() {
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState("brand");
   const [showArchived, setShowArchived] = useState(false);
+  const [statusOverrides, setStatusOverrides] = useState({});
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  // Archive state lives in the "ClientStatus" sheet tab; clients.js is the default.
+  useEffect(() => {
+    fetch('/api/client-status')
+      .then(r => r.ok ? r.json() : { status: {} })
+      .then(d => setStatusOverrides(d.status || {}))
+      .catch(() => {})
+  }, [])
+
+  const clients = baseClients.map(c => c.id in statusOverrides ? { ...c, active: statusOverrides[c.id] } : c)
+
+  const toggleArchive = async (client) => {
+    const nextActive = client.active === false
+    setSavingStatus(true)
+    try {
+      const res = await fetch('/api/client-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: client.id, active: nextActive }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText)
+      setStatusOverrides(prev => ({ ...prev, [client.id]: nextActive }))
+      setSelected({ ...client, active: nextActive })
+    } catch (err) {
+      alert(`저장 실패: ${err.message}`)
+    } finally {
+      setSavingStatus(false)
+    }
+  }
 
   const visibleClients = clients.filter(c => showArchived ? !c.active : c.active !== false)
   const filtered = filter === "All" ? visibleClients : visibleClients.filter(c => categoryMap[filter]?.includes(c.id));
@@ -102,13 +133,9 @@ export default function BrandHub() {
                 <div style={{ color: "#AAA", fontSize: 13, marginTop: 2 }}>{selected.nameKo}</div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => {
-                  const updated = clients.map(c => c.id === selected.id ? {...c, active: !c.active} : c)
-                  // Note: this is session-only — to persist, update clients.js
-                  alert(selected.active === false ? `✅ ${selected.name} activated!` : `📦 ${selected.name} archived!\n\nTo make permanent, update active: false in clients.js`)
-                }}
-                  style={{ padding: "7px 13px", background: selected.active === false ? "#FFF0F0" : "#F0EDE8", borderRadius: 8, fontSize: 12, color: selected.active === false ? "#C0272D" : "#888", border: "none", cursor: "pointer" }}>
-                  {selected.active === false ? "✅ Activate" : "📦 Archive"}
+                <button onClick={() => toggleArchive(selected)} disabled={savingStatus}
+                  style={{ opacity: savingStatus ? 0.5 : 1, padding: "7px 13px", background: selected.active === false ? "#FFF0F0" : "#F0EDE8", borderRadius: 8, fontSize: 12, color: selected.active === false ? "#C0272D" : "#888", border: "none", cursor: "pointer" }}>
+                  {savingStatus ? "Saving…" : selected.active === false ? "✅ Activate" : "📦 Archive"}
                 </button>
                 {selected.canvaProjectUrl && (
                   <a href={selected.canvaProjectUrl} target="_blank" rel="noopener noreferrer"
@@ -123,7 +150,7 @@ export default function BrandHub() {
 
             {selected.active === false && (
               <div style={{ padding: "10px 16px", background: "#FFF0F0", borderRadius: 10, border: "1px solid #FFCCCC", marginBottom: 16, fontSize: 12, color: "#C0272D", display: "flex", alignItems: "center", gap: 8 }}>
-                📦 <strong>Archived</strong> — 이 클라이언트는 현재 비활성 상태예요. clients.js에서 active: true로 변경하면 복구돼요.
+                📦 <strong>Archived</strong> — 이 클라이언트는 현재 비활성 상태예요. 위 ✅ Activate 버튼으로 복구할 수 있어요.
               </div>
             )}
             <div style={{ display: "flex", marginBottom: 22, borderBottom: "1px solid #E8E4DF" }}>
@@ -228,7 +255,7 @@ export default function BrandHub() {
                 </div>
                 <div style={{ padding: 16, background: "#FFF8F0", borderRadius: 10, border: "1px solid #FFE8C8" }}>
                   <div style={{ fontSize: 11, color: "#CC7722", fontWeight: 600, marginBottom: 6 }}>💡 Canada Holidays to Prep</div>
-                  <div style={{ fontSize: 12, color: "#666", lineHeight: 1.9 }}>Canada Day (Jul 1) · BC Day (Aug 4) · Labour Day (Sep 1) · Thanksgiving (Oct 13) · Halloween (Oct 31) · Remembrance Day (Nov 11) · Christmas (Dec 25) · New Year (Jan 1) · Valentine's (Feb 14) · Mother's Day (May 11) · Father's Day (Jun 15)</div>
+                  <div style={{ fontSize: 12, color: "#666", lineHeight: 1.9 }}>Canada Day (Jul 1) · BC Day (Aug 3) · Labour Day (Sep 7) · National Day for Truth & Reconciliation (Sep 30) · Thanksgiving (Oct 12) · Halloween (Oct 31) · Remembrance Day (Nov 11) · Christmas (Dec 25) · New Year (Jan 1) · Valentine's (Feb 14) · Mother's Day (May 9) · Father's Day (Jun 20)</div>
                 </div>
               </div>
             )}
