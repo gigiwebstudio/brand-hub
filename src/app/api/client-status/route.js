@@ -61,23 +61,15 @@ export async function POST(request) {
     const values = [[id, active ? 'TRUE' : 'FALSE', new Date().toISOString()]];
     const idx = rows.findIndex((r) => r[0] === id);
 
-    if (idx >= 0) {
-      const rowNum = idx + 2;
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: SHEET_ID,
-        range: `${TAB_NAME}!A${rowNum}:C${rowNum}`,
-        valueInputOption: 'RAW',
-        requestBody: { values },
-      });
-    } else {
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: SHEET_ID,
-        range: `${TAB_NAME}!A:C`,
-        valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
-        requestBody: { values },
-      });
-    }
+    // Explicit row targeting instead of values.append (append can shift columns
+    // when a sheet has blank rows mid-range).
+    const rowNum = idx >= 0 ? idx + 2 : rows.length + 2;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${TAB_NAME}!A${rowNum}:C${rowNum}`,
+      valueInputOption: 'RAW',
+      requestBody: { values },
+    });
     return NextResponse.json({ id, active });
   } catch (err) {
     console.error('POST /api/client-status error:', err);
