@@ -86,6 +86,9 @@ export default function TaskBoard() {
   const [loadingImages, setLoadingImages] = useState(false);
   const [lightbox, setLightbox] = useState(null); // { images: [...], index: 0 }
   const touchStartXRef = useRef(null);
+  const cardRefs = useRef({}); // taskId -> card DOM node, for drag-reorder hit testing
+  const dragReorderRef = useRef(null); // { taskId, column, startY, list } while a reorder-drag is active
+  const [dragVisual, setDragVisual] = useState(null); // { taskId, offsetY } — visual lift while dragging
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -305,21 +308,23 @@ export default function TaskBoard() {
       body: JSON.stringify({ rowIndex, sortOrder }),
     });
 
-  // Swaps sortOrder between two tasks in the same column (used by both the
-  // up/down arrows and in-column drag reordering). Completed is excluded
-  // from reordering entirely — callers check task.status before calling this.
-  const swapSortOrder = async (taskA, taskB) => {
-    const orderA = taskA.sortOrder;
-    const orderB = taskB.sortOrder;
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === taskA.id) return { ...t, sortOrder: orderB };
-        if (t.id === taskB.id) return { ...t, sortOrder: orderA };
-        return t;
-      })
-    );
+  // Re-assigns sortOrder sequentially to every task in `newOrder` (the full
+  // column, already in its new order) and PATCHes only the ones that
+  // actually changed. Reassigning the whole column — rather than swapping
+  // two values — is what makes this safe for legacy rows that all share
+  // sortOrder 0: a swap between two 0s is a no-op, a full reassign isn't.
+  const commitReorder = async (newOrder) => {
+    const updated = newOrder.map((t, i) => ({ ...t, sortOrder: (i + 1) * 1000 }));
+    setTasks((prev) => {
+      const byId = Object.fromEntries(updated.map((t) => [t.id, t]));
+      return prev.map((t) => byId[t.id] || t);
+    });
     try {
-      await Promise.all([patchSortOrder(taskA.rowIndex, orderB), patchSortOrder(taskB.rowIndex, orderA)]);
+      await Promise.all(
+        updated
+          .filter((t, i) => t.sortOrder !== newOrder[i].sortOrder)
+          .map((t) => patchSortOrder(t.rowIndex, t.sortOrder))
+      );
       fetchTasks();
     } catch (err) {
       console.error('Failed to reorder tasks:', err);
@@ -327,21 +332,71 @@ export default function TaskBoard() {
     }
   };
 
-  const moveTask = (task, direction) => {
+  // Drag-handle pointer handlers (mouse AND touch — Completed cards never
+  // get a handle, see renderCard). The handle captures the pointer so move/up
+  // events keep firing even if the finger/cursor leaves the handle itself.
+  const handleReorderPointerDown = (e, task) => {
     if (task.status === 'completed') return;
+    e.preventDefault();
+    e.stopPropagation();
     const list = columnTasks(task.status);
-    const idx = list.findIndex((t) => t.id === task.id);
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (idx === -1 || swapIdx < 0 || swapIdx >= list.length) return;
-    swapSortOrder(task, list[swapIdx]);
+    dragReorderRef.current = { taskId: task.id, column: task.status, startY: e.clientY, list };
+    setDragVisual({ taskId: task.id, offsetY: 0 });
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore — not critical if capture isn't supported
+    }
   };
 
-  const renderCard = (task, index, list) => {
+  const handleReorderPointerMove = (e) => {
+    const drag = dragReorderRef.current;
+    if (!drag) return;
+    setDragVisual({ taskId: drag.taskId, offsetY: e.clientY - drag.startY });
+  };
+
+  const endReorderDrag = (e) => {
+    const drag = dragReorderRef.current;
+    dragReorderRef.current = null;
+    setDragVisual(null);
+    if (!drag) return;
+
+    const { taskId, list } = drag;
+    const finalY = e.clientY;
+    const draggedTask = list.find((t) => t.id === taskId);
+    if (!draggedTask) return;
+
+    const others = list.filter((t) => t.id !== taskId);
+    let insertAt = others.length;
+    for (let i = 0; i < others.length; i++) {
+      const el = cardRefs.current[others[i].id];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      const centerY = rect.top + rect.height / 2;
+      if (finalY < centerY) {
+        insertAt = i;
+        break;
+      }
+    }
+
+    const newOrder = [...others];
+    newOrder.splice(insertAt, 0, draggedTask);
+
+    const unchanged = newOrder.every((t, i) => t.id === list[i]?.id);
+    if (!unchanged) commitReorder(newOrder);
+  };
+
+  const renderCard = (task) => {
     const overdue = isOverdue(task);
     const reorderable = task.status !== 'completed';
+    const beingDragged = dragVisual?.taskId === task.id;
     return (
       <div
         key={task.id}
+        ref={(el) => {
+          if (el) cardRefs.current[task.id] = el;
+          else delete cardRefs.current[task.id];
+        }}
         draggable={!isMobile}
         onDragStart={(e) => {
           e.stopPropagation();
@@ -349,7 +404,6 @@ export default function TaskBoard() {
         }}
         onDragEnd={() => setDraggedTaskId(null)}
         onDragOver={(e) => {
-          if (!reorderable) return;
           e.preventDefault();
           e.stopPropagation();
         }}
@@ -359,12 +413,7 @@ export default function TaskBoard() {
           const draggedTask = tasks.find((t) => t.id === draggedTaskId);
           setDraggedTaskId(null);
           if (!draggedTask || draggedTask.id === task.id) return;
-          if (draggedTask.status !== task.status) {
-            updateStatus(draggedTask, task.status);
-            return;
-          }
-          if (!reorderable) return;
-          swapSortOrder(draggedTask, task);
+          if (draggedTask.status !== task.status) updateStatus(draggedTask, task.status);
         }}
         onClick={() => {
           setSelectedTask(task);
@@ -380,10 +429,14 @@ export default function TaskBoard() {
           borderRadius: 12,
           padding: 14,
           marginBottom: 10,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+          boxShadow: beingDragged ? '0 6px 16px rgba(0,0,0,0.18)' : '0 1px 3px rgba(0,0,0,0.08)',
           cursor: 'pointer',
           border: overdue ? '1px solid #E8B4A8' : '1px solid #eee',
           opacity: draggedTaskId === task.id ? 0.4 : 1,
+          transform: beingDragged ? `translateY(${dragVisual.offsetY}px)` : undefined,
+          position: beingDragged ? 'relative' : undefined,
+          zIndex: beingDragged ? 50 : undefined,
+          transition: beingDragged ? 'none' : 'box-shadow 0.1s',
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -455,47 +508,28 @@ export default function TaskBoard() {
           )}
         </div>
         {reorderable && (
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                moveTask(task, 'up');
-              }}
-              disabled={index === 0}
-              style={{
-                border: 'none',
-                background: '#f5f5f5',
-                borderRadius: 6,
-                width: 22,
-                height: 22,
-                fontSize: 11,
-                lineHeight: '22px',
-                cursor: index === 0 ? 'default' : 'pointer',
-                color: index === 0 ? '#ddd' : '#888',
-              }}
-            >
-              ▲
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                moveTask(task, 'down');
-              }}
-              disabled={index === list.length - 1}
-              style={{
-                border: 'none',
-                background: '#f5f5f5',
-                borderRadius: 6,
-                width: 22,
-                height: 22,
-                fontSize: 11,
-                lineHeight: '22px',
-                cursor: index === list.length - 1 ? 'default' : 'pointer',
-                color: index === list.length - 1 ? '#ddd' : '#888',
-              }}
-            >
-              ▼
-            </button>
+          <div
+            onPointerDown={(e) => handleReorderPointerDown(e, task)}
+            onPointerMove={handleReorderPointerMove}
+            onPointerUp={endReorderDrag}
+            onPointerCancel={endReorderDrag}
+            onClick={(e) => e.stopPropagation()}
+            onDragStart={(e) => e.preventDefault()}
+            draggable={false}
+            title="드래그해서 순서 변경"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 22,
+              color: '#ccc',
+              fontSize: 16,
+              cursor: 'grab',
+              touchAction: 'none',
+              userSelect: 'none',
+            }}
+          >
+            ⠿
           </div>
         )}
       </div>
