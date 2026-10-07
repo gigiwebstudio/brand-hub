@@ -42,10 +42,10 @@ const APP_URL = process.env.APP_URL || 'https://brand-hub-mu-black.vercel.app';
 // Builds a notification body: heading, [client] title, due date, a short
 // description preview, and a link that opens the task's modal directly
 // (TaskBoard reads ?task=<id> on load).
-export function formatTaskMessage(heading, task) {
+export function formatTaskMessage(heading, task, bodyOverride) {
   const lines = [heading, '', `[${task.client}] ${task.taskTitle}`];
   if (task.dueDate) lines.push(`📅 마감: ${task.dueDate}`);
-  const desc = (task.taskDescription || '').trim();
+  const desc = (bodyOverride ?? task.taskDescription ?? '').trim();
   if (desc) lines.push('', desc.length > 200 ? `${desc.slice(0, 200)}…` : desc);
   lines.push('', `👉 ${APP_URL}/tasks?task=${task.id}`);
   return lines.join('\n');
