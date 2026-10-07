@@ -27,7 +27,7 @@ export function getTeamMemberColor(name) {
 // Leave a value as '' until that person is set up; notifications to them
 // are simply skipped until then (no error, no crash).
 export const TEAM_MEMBER_TELEGRAM_IDS = {
-  슬기: '',
+  슬기: '8860998831',
   경민: '',
   상원: '',
   정진: '',
