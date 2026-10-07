@@ -69,7 +69,7 @@ export async function PATCH(request) {
     // assignee needs to know work got sent back). "needs_review" is
     // intentionally silent for now.
     if (updates.status && updates.status !== existingTask.status && updates.status === 'needs_changes' && mergedTask.assignedTo) {
-      await notifyTeamMember(mergedTask.assignedTo, formatTaskMessage('✏️ 수정 요청이 왔어요', mergedTask));
+      await notifyTeamMember(mergedTask.assignedTo, formatTaskMessage('✏️ 수정 요청이 왔어요', mergedTask), mergedTask);
     }
 
     // Reassignment notification: if assignedTo changed, the NEW assignee
@@ -80,7 +80,7 @@ export async function PATCH(request) {
       updates.assignedTo &&
       updates.assignedTo !== existingTask.assignedTo
     ) {
-      await notifyTeamMember(updates.assignedTo, formatTaskMessage('🔄 나에게 재배정된 태스크예요', mergedTask));
+      await notifyTeamMember(updates.assignedTo, formatTaskMessage('🔄 나에게 재배정된 태스크예요', mergedTask), mergedTask);
     }
 
     // Comment notification: ping the assignee when SOMEONE ELSE comments.
@@ -91,7 +91,8 @@ export async function PATCH(request) {
       if (author !== mergedTask.assignedTo) {
         await notifyTeamMember(
           mergedTask.assignedTo,
-          formatTaskMessage('💬 새 코멘트가 달렸어요', mergedTask, appendComment)
+          formatTaskMessage('💬 새 코멘트가 달렸어요', mergedTask, appendComment),
+          mergedTask
         );
       }
     }

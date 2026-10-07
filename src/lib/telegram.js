@@ -48,10 +48,10 @@ export const removeButtons = (chatId, messageId) =>
 
 // Looks up the team member's chat_id and sends them a message. No-op if
 // that person hasn't been set up in TEAM_MEMBER_TELEGRAM_IDS yet.
-export async function notifyTeamMember(name, text) {
+export async function notifyTeamMember(name, text, task) {
   const chatId = TEAM_MEMBER_TELEGRAM_IDS[name];
   if (!chatId) return;
-  await sendTelegramMessage(chatId, text);
+  await sendTelegramMessage(chatId, text, task ? taskButton(task) : {});
 }
 
 const APP_URL = process.env.APP_URL || 'https://brand-hub-mu-black.vercel.app';
@@ -64,6 +64,12 @@ export function formatTaskMessage(heading, task, bodyOverride) {
   if (task.dueDate) lines.push(`📅 마감: ${task.dueDate}`);
   const desc = (bodyOverride ?? task.taskDescription ?? '').trim();
   if (desc) lines.push('', desc.length > 200 ? `${desc.slice(0, 200)}…` : desc);
-  lines.push('', `👉 ${APP_URL}/tasks?task=${task.id}`);
   return lines.join('\n');
+}
+
+// Inline button that opens the task modal (instead of a long raw URL).
+export function taskButton(task) {
+  return {
+    reply_markup: { inline_keyboard: [[{ text: '📋 태스크 열기', url: `${APP_URL}/tasks?task=${task.id}` }]] },
+  };
 }

@@ -116,7 +116,7 @@ export async function appendTask(partialTask, { notify = true } = {}) {
     // Awaited (not fire-and-forget) since Vercel serverless functions can be
     // frozen/torn down right after the response is sent, which would drop
     // an un-awaited notification.
-    await notifyTeamMember(newTask.assignedTo, formatTaskMessage('🆕 새 태스크가 배정됐어요', newTask));
+    await notifyTeamMember(newTask.assignedTo, formatTaskMessage('🆕 새 태스크가 배정됐어요', newTask), newTask);
   }
 
   return newTask;

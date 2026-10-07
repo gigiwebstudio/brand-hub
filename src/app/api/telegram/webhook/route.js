@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { clients } from '../../../clients';
 import { appendTask } from '../../../../lib/tasksSheet';
 import { TEAM_MEMBERS, TEAM_MEMBER_TELEGRAM_IDS } from '../../../../lib/teamMembers';
-import { sendTelegramMessage, formatTaskMessage, answerCallbackQuery, removeButtons } from '../../../../lib/telegram';
+import { sendTelegramMessage, formatTaskMessage, answerCallbackQuery, removeButtons, taskButton } from '../../../../lib/telegram';
 import { getDraftState, setDraftState, clearDraftState } from '../../../../lib/telegramDrafts';
 
 // Telegram sends every message sent to the bot here (registered once via
@@ -36,6 +36,15 @@ const GUIDE = [
   '',
   '(취소: /cancel)',
 ].join('\n');
+
+const CLIENT_BUTTONS = {
+  inline_keyboard: [
+    [
+      { text: '⏭ 클라이언트 없이 진행', callback_data: 'skipclient' },
+      { text: '🗑 취소', callback_data: 'cancel' },
+    ],
+  ],
+};
 
 const BUTTONS = {
   inline_keyboard: [
@@ -141,6 +150,20 @@ export async function POST(request) {
     // --- Button presses (저장 / 수정 / 취소) ---
     if (cb) {
       const { state, draft } = await getDraftState(chatId);
+      if (cb.data === 'skipclient' && state === 'awaiting_client' && draft) {
+        await answerCallbackQuery(cb.id);
+        await removeButtons(chatId, msg.message_id);
+        await setDraftState(chatId, 'awaiting_confirm', draft);
+        await sendTelegramMessage(chatId, previewText(draft), { reply_markup: BUTTONS });
+        return NextResponse.json({ ok: true });
+      }
+      if (cb.data === 'cancel' && state === 'awaiting_client') {
+        await answerCallbackQuery(cb.id);
+        await removeButtons(chatId, msg.message_id);
+        await clearDraftState(chatId);
+        await sendTelegramMessage(chatId, '🗑 취소했어요. 새로 만들려면 /newtask');
+        return NextResponse.json({ ok: true });
+      }
       if (state !== 'awaiting_confirm' || !draft) {
         await answerCallbackQuery(cb.id, '이미 처리됐거나 만료된 요청이에요.');
         await removeButtons(chatId, msg.message_id);
@@ -156,7 +179,7 @@ export async function POST(request) {
         let reply = formatTaskMessage('✅ 태스크를 저장했어요', task);
         if (!draft.client) reply += '\n\n※ 클라이언트가 비어있어요. 앱에서 지정해주세요.';
         if (draft.assignedTo !== sender) reply += `\n※ 담당: ${draft.assignedTo}`;
-        await sendTelegramMessage(chatId, reply);
+        await sendTelegramMessage(chatId, reply, taskButton(task));
       } else if (cb.data === 'edit') {
         await setDraftState(chatId, 'awaiting_text', null);
         await sendTelegramMessage(chatId, '✏️ 수정한 내용을 처음부터 다시 보내주세요. (취소: /cancel)');
@@ -186,15 +209,34 @@ export async function POST(request) {
       await clearDraftState(chatId);
       await sendTelegramMessage(chatId, '🗑 취소했어요. 새로 만들려면 /newtask');
     } else {
-      const { state } = await getDraftState(chatId);
-      if (state === 'awaiting_text' || state === 'awaiting_confirm') {
+      const { state, draft: pending } = await getDraftState(chatId);
+      if (state === 'awaiting_client' && pending && text) {
+        // Expecting just a client name; anything else is re-asked.
+        const c = findClient(text);
+        if (c) {
+          pending.client = c;
+          await setDraftState(chatId, 'awaiting_confirm', pending);
+          await sendTelegramMessage(chatId, previewText(pending), { reply_markup: BUTTONS });
+        } else {
+          await sendTelegramMessage(chatId, '그 이름의 클라이언트를 못 찾았어요. 클라이언트 이름만 다시 보내주세요. (예: Cocorico, 월하)', {
+            reply_markup: CLIENT_BUTTONS,
+          });
+        }
+      } else if (state === 'awaiting_text' || state === 'awaiting_confirm') {
         if (!text) {
           await sendTelegramMessage(chatId, '글로 보내주세요. 사진은 저장할 수 없어요.');
         } else {
           // A new message while a preview is open simply replaces the draft.
           const draft = parseDraft(text, sender);
-          await setDraftState(chatId, 'awaiting_confirm', draft);
-          await sendTelegramMessage(chatId, previewText(draft), { reply_markup: BUTTONS });
+          if (!draft.client) {
+            await setDraftState(chatId, 'awaiting_client', draft);
+            await sendTelegramMessage(chatId, `클라이언트를 못 찾았어요.\n제목: ${draft.taskTitle}\n\n클라이언트 이름만 따로 보내주세요. (예: Cocorico, 월하)`, {
+              reply_markup: CLIENT_BUTTONS,
+            });
+          } else {
+            await setDraftState(chatId, 'awaiting_confirm', draft);
+            await sendTelegramMessage(chatId, previewText(draft), { reply_markup: BUTTONS });
+          }
         }
       } else {
         await sendTelegramMessage(chatId, '태스크를 만들려면 먼저 /newtask 를 보내주세요.\n(도움말: /help)');
