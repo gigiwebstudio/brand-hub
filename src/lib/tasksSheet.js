@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { notifyTeamMember } from './telegram';
+import { notifyTeamMember, formatTaskMessage } from './telegram';
 
 const SHEET_ID = process.env.BRAND_HUB_SHEET_ID;
 const TAB_NAME = 'Tasks';
@@ -116,11 +116,7 @@ export async function appendTask(partialTask) {
     // Awaited (not fire-and-forget) since Vercel serverless functions can be
     // frozen/torn down right after the response is sent, which would drop
     // an un-awaited notification.
-    await notifyTeamMember(
-      newTask.assignedTo,
-      `🆕 새 태스크가 배정됐어요\n\n[${newTask.client}] ${newTask.taskTitle}` +
-        (newTask.dueDate ? `\n📅 마감: ${newTask.dueDate}` : '')
-    );
+    await notifyTeamMember(newTask.assignedTo, formatTaskMessage('🆕 새 태스크가 배정됐어요', newTask));
   }
 
   return newTask;

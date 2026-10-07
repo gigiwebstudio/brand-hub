@@ -1,7 +1,7 @@
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
 import { getAuth, rowToTask, taskToRow, appendTask, getAllTasks, clearTaskRow } from '../../../lib/tasksSheet';
-import { notifyTeamMember } from '../../../lib/telegram';
+import { notifyTeamMember, formatTaskMessage } from '../../../lib/telegram';
 
 const SHEET_ID = process.env.BRAND_HUB_SHEET_ID;
 const TAB_NAME = 'Tasks';
@@ -69,10 +69,7 @@ export async function PATCH(request) {
     // assignee needs to know work got sent back). "needs_review" is
     // intentionally silent for now.
     if (updates.status && updates.status !== existingTask.status && updates.status === 'needs_changes' && mergedTask.assignedTo) {
-      await notifyTeamMember(
-        mergedTask.assignedTo,
-        `✏️ 수정 요청\n\n[${mergedTask.client}] ${mergedTask.taskTitle}`
-      );
+      await notifyTeamMember(mergedTask.assignedTo, formatTaskMessage('✏️ 수정 요청', mergedTask));
     }
 
     // Reassignment notification: if assignedTo changed, the NEW assignee
@@ -83,11 +80,7 @@ export async function PATCH(request) {
       updates.assignedTo &&
       updates.assignedTo !== existingTask.assignedTo
     ) {
-      await notifyTeamMember(
-        updates.assignedTo,
-        `🔄 태스크가 배정됐어요\n\n[${mergedTask.client}] ${mergedTask.taskTitle}` +
-          (mergedTask.dueDate ? `\n📅 마감: ${mergedTask.dueDate}` : '')
-      );
+      await notifyTeamMember(updates.assignedTo, formatTaskMessage('🔄 태스크가 배정됐어요', mergedTask));
     }
 
     return NextResponse.json({ task: mergedTask });

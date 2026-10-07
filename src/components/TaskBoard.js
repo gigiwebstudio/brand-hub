@@ -121,6 +121,23 @@ export default function TaskBoard() {
     if (saved) setIdentity(saved);
   }, []);
 
+  // Deep link from Telegram notifications: /tasks?task=<id> opens that
+  // task's modal once, as soon as the task list has loaded.
+  const openedFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (openedFromUrlRef.current || tasks.length === 0) return;
+    const id = new URLSearchParams(window.location.search).get('task');
+    if (!id) {
+      openedFromUrlRef.current = true;
+      return;
+    }
+    const match = tasks.find((t) => t.id === id);
+    if (match) {
+      setSelectedTask(match);
+      openedFromUrlRef.current = true;
+    }
+  }, [tasks]);
+
   const chooseIdentity = (name) => {
     window.localStorage.setItem('brandhub_identity', name);
     setIdentity(name);
