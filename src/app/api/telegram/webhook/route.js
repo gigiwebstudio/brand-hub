@@ -169,9 +169,15 @@ export async function POST(request) {
 
     // --- Text messages ---
     const text = (msg.text || msg.caption || '').trim();
-    const cmd = text.split(/[\s@]/)[0];
+    // Triggers: exact message only (so a real task text containing these words
+    // isn't hijacked). Slash optional, spaces/case ignored.
+    const key = text.toLowerCase().replace(/^\//, '').replace(/@\w+$/, '').replace(/\s+/g, '');
+    const NEW_TRIGGERS = ['newtask', '새태스크', '새테스크', '새작업', '태스크', '테스크', '태스크추가', '테스크추가'];
+    const CANCEL_TRIGGERS = ['cancel', '취소'];
+    const HELP_TRIGGERS = ['start', 'help', '도움말'];
+    const cmd = NEW_TRIGGERS.includes(key) ? '/newtask' : CANCEL_TRIGGERS.includes(key) ? '/cancel' : HELP_TRIGGERS.includes(key) ? '/help' : '';
 
-    if (cmd === '/start' || cmd === '/help') {
+    if (cmd === '/help') {
       await sendTelegramMessage(chatId, HELP);
     } else if (cmd === '/newtask') {
       await setDraftState(chatId, 'awaiting_text', null);
