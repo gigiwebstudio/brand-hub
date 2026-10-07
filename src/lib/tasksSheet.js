@@ -69,7 +69,7 @@ export function taskToRow(task) {
 
 // Creates one new task row. Used by both the manual "New Task" modal (via
 // /api/tasks POST) and the weekly recurring-task cron job.
-export async function appendTask(partialTask) {
+export async function appendTask(partialTask, { notify = true } = {}) {
   const now = new Date().toISOString();
   const newTask = {
     id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -112,7 +112,7 @@ export async function appendTask(partialTask) {
 
   // Fires for every creation path (manual "New Task" modal, weekly recurring
   // cron, holiday reminder cron) since they all funnel through appendTask.
-  if (newTask.assignedTo) {
+  if (notify && newTask.assignedTo) {
     // Awaited (not fire-and-forget) since Vercel serverless functions can be
     // frozen/torn down right after the response is sent, which would drop
     // an un-awaited notification.
