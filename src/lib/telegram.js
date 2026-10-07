@@ -12,13 +12,13 @@ import { TEAM_MEMBER_TELEGRAM_IDS } from './teamMembers';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
-export async function sendTelegramMessage(chatId, text) {
+export async function sendTelegramMessage(chatId, text, extra = {}) {
   if (!BOT_TOKEN || !chatId) return;
   try {
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text }),
+      body: JSON.stringify({ chat_id: chatId, text, ...extra }),
     });
     if (!res.ok) {
       const detail = await res.text();
@@ -28,6 +28,23 @@ export async function sendTelegramMessage(chatId, text) {
     console.error('Telegram sendMessage error:', err);
   }
 }
+
+// Telegram API helpers for inline-button interactions.
+async function callTelegram(method, payload) {
+  if (!BOT_TOKEN) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error(`Telegram ${method} error:`, err);
+  }
+}
+export const answerCallbackQuery = (id, text) => callTelegram('answerCallbackQuery', { callback_query_id: id, text });
+export const removeButtons = (chatId, messageId) =>
+  callTelegram('editMessageReplyMarkup', { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } });
 
 // Looks up the team member's chat_id and sends them a message. No-op if
 // that person hasn't been set up in TEAM_MEMBER_TELEGRAM_IDS yet.

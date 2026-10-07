@@ -2,27 +2,50 @@ import { NextResponse } from 'next/server';
 import { clients } from '../../../clients';
 import { appendTask } from '../../../../lib/tasksSheet';
 import { TEAM_MEMBERS, TEAM_MEMBER_TELEGRAM_IDS } from '../../../../lib/teamMembers';
-import { sendTelegramMessage, formatTaskMessage } from '../../../../lib/telegram';
+import { sendTelegramMessage, formatTaskMessage, answerCallbackQuery, removeButtons } from '../../../../lib/telegram';
+import { getDraftState, setDraftState, clearDraftState } from '../../../../lib/telegramDrafts';
 
 // Telegram sends every message sent to the bot here (registered once via
-// setWebhook). Lets a team member create a task by messaging the bot in
-// plain text. No AI: the client is matched by name, URLs become links, the
-// first remaining line is the title and the rest is the description.
+// setWebhook). Task creation is an explicit flow: /newtask -> format guide ->
+// user sends text -> preview with 저장/수정/취소 buttons -> save. No AI: the
+// client is matched by name, URLs become links, first line is the title.
 export const dynamic = 'force-dynamic';
 
 const HELP = [
-  '태스크 만드는 법: 그냥 메시지로 보내세요.',
+  '📝 태스크 만들기: /newtask 를 보내세요.',
+  '그러면 작성 방법을 알려드리고, 내용을 보내면 확인 후 저장해요.',
+  '',
+  '/newtask — 새 태스크 작성',
+  '/cancel — 작성 중이던 것 취소',
+  '/help — 도움말',
+].join('\n');
+
+const GUIDE = [
+  '📝 새 태스크 내용을 한 번에 보내주세요.',
   '',
   '예)',
   'Cocorico 메뉴 사진 3장 수정',
   '자세한 설명은 여기부터 (여러 줄 가능)',
   'https://링크는 자동으로 링크로 저장돼요',
+  '@경민',
   '',
   '• 첫 줄 = 제목, 나머지 = 설명',
   '• 클라이언트 이름(예: Cocorico, 월하)이 글 안에 있으면 자동 지정',
   '• 담당자는 기본이 나. 다른 사람은 @경민 처럼 쓰기',
   '• 사진은 못 받아요. 사진은 앱에서 Drive 폴더에 넣어주세요.',
+  '',
+  '(취소: /cancel)',
 ].join('\n');
+
+const BUTTONS = {
+  inline_keyboard: [
+    [
+      { text: '✅ 저장', callback_data: 'save' },
+      { text: '✏️ 수정', callback_data: 'edit' },
+      { text: '🗑 취소', callback_data: 'cancel' },
+    ],
+  ],
+};
 
 const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
 
@@ -53,6 +76,44 @@ function findClient(text) {
   return best?.name || '';
 }
 
+function parseDraft(text, sender) {
+  let assignedTo = sender;
+  let body = text;
+  for (const name of TEAM_MEMBERS) {
+    if (body.includes(`@${name}`)) {
+      assignedTo = name;
+      body = body.split(`@${name}`).join('');
+    }
+  }
+  const client = findClient(body);
+  const links = [...new Set(body.match(/https?:\/\/[^\s]+/g) || [])];
+  const lines = body
+    .split('\n')
+    .map((l) => l.replace(/https?:\/\/[^\s]+/g, '').trim())
+    .filter(Boolean);
+  if (client && lines.length > 1 && norm(lines[0]) === norm(client)) lines.shift();
+  return {
+    client,
+    taskTitle: (lines[0] || links[0] || '(제목 없음)').slice(0, 100),
+    taskDescription: lines.slice(1).join('\n'),
+    links,
+    assignedTo,
+  };
+}
+
+function previewText(d) {
+  const lines = [
+    '👀 이렇게 저장할까요?',
+    '',
+    `클라이언트: ${d.client || '❓ 못 찾음 (저장 후 앱에서 지정)'}`,
+    `제목: ${d.taskTitle}`,
+    `담당: ${d.assignedTo}`,
+  ];
+  if (d.taskDescription) lines.push('', `설명:\n${d.taskDescription}`);
+  if (d.links.length) lines.push('', `링크:\n${d.links.join('\n')}`);
+  return lines.join('\n');
+}
+
 export async function POST(request) {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!secret || request.headers.get('x-telegram-bot-api-secret-token') !== secret) {
@@ -62,7 +123,8 @@ export async function POST(request) {
   // Always answer 200 after this point, otherwise Telegram retries the update.
   try {
     const update = await request.json();
-    const msg = update.message;
+    const cb = update.callback_query;
+    const msg = cb ? cb.message : update.message;
     if (!msg?.chat?.id) return NextResponse.json({ ok: true });
 
     const chatId = String(msg.chat.id);
@@ -76,46 +138,62 @@ export async function POST(request) {
       return NextResponse.json({ ok: true });
     }
 
-    const text = (msg.text || msg.caption || '').trim();
-    if (!text || text === '/start' || text === '/help') {
-      await sendTelegramMessage(chatId, msg.photo ? `사진만으로는 태스크를 못 만들어요.\n\n${HELP}` : HELP);
+    // --- Button presses (저장 / 수정 / 취소) ---
+    if (cb) {
+      const { state, draft } = await getDraftState(chatId);
+      if (state !== 'awaiting_confirm' || !draft) {
+        await answerCallbackQuery(cb.id, '이미 처리됐거나 만료된 요청이에요.');
+        await removeButtons(chatId, msg.message_id);
+        return NextResponse.json({ ok: true });
+      }
+      await answerCallbackQuery(cb.id);
+      await removeButtons(chatId, msg.message_id);
+
+      if (cb.data === 'save') {
+        // Sender gets the confirmation below, so skip the self-assign notification.
+        const task = await appendTask(draft, { notify: draft.assignedTo !== sender });
+        await clearDraftState(chatId);
+        let reply = formatTaskMessage('✅ 태스크를 저장했어요', task);
+        if (!draft.client) reply += '\n\n※ 클라이언트가 비어있어요. 앱에서 지정해주세요.';
+        if (draft.assignedTo !== sender) reply += `\n※ 담당: ${draft.assignedTo}`;
+        await sendTelegramMessage(chatId, reply);
+      } else if (cb.data === 'edit') {
+        await setDraftState(chatId, 'awaiting_text', null);
+        await sendTelegramMessage(chatId, '✏️ 수정한 내용을 처음부터 다시 보내주세요. (취소: /cancel)');
+      } else {
+        await clearDraftState(chatId);
+        await sendTelegramMessage(chatId, '🗑 취소했어요. 새로 만들려면 /newtask');
+      }
       return NextResponse.json({ ok: true });
     }
 
-    // @name -> assignee (default: the sender)
-    let assignedTo = sender;
-    let body = text;
-    for (const name of TEAM_MEMBERS) {
-      if (body.includes(`@${name}`)) {
-        assignedTo = name;
-        body = body.split(`@${name}`).join('');
+    // --- Text messages ---
+    const text = (msg.text || msg.caption || '').trim();
+    const cmd = text.split(/[\s@]/)[0];
+
+    if (cmd === '/start' || cmd === '/help') {
+      await sendTelegramMessage(chatId, HELP);
+    } else if (cmd === '/newtask') {
+      await setDraftState(chatId, 'awaiting_text', null);
+      await sendTelegramMessage(chatId, GUIDE);
+    } else if (cmd === '/cancel') {
+      await clearDraftState(chatId);
+      await sendTelegramMessage(chatId, '🗑 취소했어요. 새로 만들려면 /newtask');
+    } else {
+      const { state } = await getDraftState(chatId);
+      if (state === 'awaiting_text' || state === 'awaiting_confirm') {
+        if (!text) {
+          await sendTelegramMessage(chatId, '글로 보내주세요. 사진은 저장할 수 없어요.');
+        } else {
+          // A new message while a preview is open simply replaces the draft.
+          const draft = parseDraft(text, sender);
+          await setDraftState(chatId, 'awaiting_confirm', draft);
+          await sendTelegramMessage(chatId, previewText(draft), { reply_markup: BUTTONS });
+        }
+      } else {
+        await sendTelegramMessage(chatId, '태스크를 만들려면 먼저 /newtask 를 보내주세요.\n(도움말: /help)');
       }
     }
-
-    const client = findClient(body);
-    const links = [...new Set(body.match(/https?:\/\/[^\s]+/g) || [])];
-    const lines = body
-      .split('\n')
-      .map((l) => l.replace(/https?:\/\/[^\s]+/g, '').trim())
-      .filter(Boolean);
-    // Drop a first line that is only the client name
-    if (client && lines.length > 1 && norm(lines[0]) === norm(client)) lines.shift();
-
-    const taskTitle = (lines[0] || links[0] || '(제목 없음)').slice(0, 100);
-    const taskDescription = lines.slice(1).join('\n');
-
-    // The sender gets a confirmation reply below, so skip the "assigned to
-    // you" notification when they assigned the task to themselves.
-    const task = await appendTask(
-      { client, taskTitle, taskDescription, links, assignedTo },
-      { notify: assignedTo !== sender }
-    );
-
-    let reply = formatTaskMessage('✅ 태스크를 만들었어요', task);
-    if (!client) reply += '\n\n※ 클라이언트를 못 찾았어요. 앱에서 지정해주세요.';
-    if (msg.photo) reply += '\n※ 사진은 저장되지 않았어요. 앱에서 Drive 폴더에 넣어주세요.';
-    if (assignedTo !== sender) reply += `\n※ 담당: ${assignedTo}`;
-    await sendTelegramMessage(chatId, reply);
   } catch (err) {
     console.error('Telegram webhook error:', err);
   }
